@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  color     String    @default("#3B82F6")
+  users     User[]
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(EMPLOYEE)
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id])
+  bookings     Booking[]
+  createdAt    DateTime  @default(now())
+}
+
+enum Role {
+  EMPLOYEE
+  ADMIN
+}
+
+model Room {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  capacity  Int
+  amenities String[]
+  isActive  Boolean   @default(true)
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  title         String
+  roomId        String
+  room          Room          @relation(fields: [roomId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id])
+  startTime     DateTime
+  endTime       DateTime
+  durationHours Float
+  status        BookingStatus @default(PENDING_APPROVAL)
+  checkInTime   DateTime?
+  isNoShow      Boolean       @default(false)
+  notes         String?
+  isPaid        Boolean       @default(false)
+  paymentStatus String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  logs          BookingLog[]
+
+  @@index([roomId, startTime, endTime])
+}
+
+enum BookingStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  REJECTED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model BookingLog {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  action    String
+  actorId   String
+  metadata  Json?
+  timestamp DateTime @default(now())
+}
