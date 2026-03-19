@@ -1,27 +1,35 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { api } from '@/lib/api';
+import { setAuth } from '@/lib/auth';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.auth.getCompanies().then(setCompanies).catch(() => {});
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      const result = await api.auth.register({ name, email, password, companyId });
+      setAuth(result.token, result.user);
       router.push('/calendar');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -34,7 +42,6 @@ export default function LoginPage() {
         className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-16"
         style={{ backgroundColor: 'var(--th-pink-light)' }}
       >
-        {/* Townhouse grid logo */}
         <div className="w-16 h-16 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-0.5 p-1 mb-8">
           <div className="bg-[#1A1A1A]" />
           <div className="bg-[#1A1A1A]" />
@@ -53,12 +60,10 @@ export default function LoginPage() {
         >
           Meeting Room Booking
         </p>
-
-        {/* Decorative pink line */}
         <div className="mt-12 w-16 h-px" style={{ backgroundColor: 'var(--th-pink)' }} />
       </div>
 
-      {/* Right login form */}
+      {/* Right signup form */}
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         {/* Mobile logo */}
         <div className="lg:hidden text-center mb-10">
@@ -79,10 +84,10 @@ export default function LoginPage() {
               className="text-xs font-semibold tracking-[0.2em] uppercase mb-2"
               style={{ color: 'var(--th-muted)' }}
             >
-              Welcome back
+              Get started
             </h2>
             <p className="text-xl font-light tracking-wide" style={{ color: 'var(--th-text)' }}>
-              Sign in to your account
+              Create your account
             </p>
             <div className="mt-3 w-8 h-px" style={{ backgroundColor: 'var(--th-pink)' }} />
           </div>
@@ -106,6 +111,26 @@ export default function LoginPage() {
                 className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
                 style={{ color: 'var(--th-muted)' }}
               >
+                Full name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                required
+                placeholder="Jane Smith"
+                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9]"
+                style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
+                onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
+              />
+            </div>
+
+            <div>
+              <label
+                className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
+                style={{ color: 'var(--th-muted)' }}
+              >
                 Email address
               </label>
               <input
@@ -115,10 +140,7 @@ export default function LoginPage() {
                 required
                 placeholder="you@company.com"
                 className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9]"
-                style={{
-                  borderColor: 'var(--th-border)',
-                  color: 'var(--th-text)',
-                }}
+                style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               />
@@ -138,13 +160,33 @@ export default function LoginPage() {
                 required
                 placeholder="••••••••"
                 className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9]"
-                style={{
-                  borderColor: 'var(--th-border)',
-                  color: 'var(--th-text)',
-                }}
+                style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               />
+            </div>
+
+            <div>
+              <label
+                className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
+                style={{ color: 'var(--th-muted)' }}
+              >
+                Company
+              </label>
+              <select
+                value={companyId}
+                onChange={e => setCompanyId(e.target.value)}
+                required
+                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors appearance-none"
+                style={{ borderColor: 'var(--th-border)', color: companyId ? 'var(--th-text)' : '#C5BDB9' }}
+                onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
+              >
+                <option value="" disabled>Select your company</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
             <button
@@ -155,29 +197,19 @@ export default function LoginPage() {
               onMouseOver={e => !loading && ((e.target as HTMLElement).style.backgroundColor = 'var(--th-pink-hover)')}
               onMouseOut={e => ((e.target as HTMLElement).style.backgroundColor = 'var(--th-pink)')}
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? 'Creating account…' : 'Create account'}
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--th-border)' }}>
-            <p className="text-[10px] tracking-[0.1em] uppercase text-center mb-3" style={{ color: 'var(--th-muted)' }}>
-              Demo credentials
-            </p>
-            <div className="space-y-1 text-[11px] text-center" style={{ color: 'var(--th-muted)' }}>
-              <p>admin@acme.com / admin123</p>
-              <p>bob@acme.com / password123</p>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center">
+          <div className="mt-8 pt-6 border-t text-center" style={{ borderColor: 'var(--th-border)' }}>
             <p className="text-[11px]" style={{ color: 'var(--th-muted)' }}>
-              Don&apos;t have an account?{' '}
+              Already have an account?{' '}
               <Link
-                href="/signup"
+                href="/login"
                 className="underline underline-offset-2"
                 style={{ color: 'var(--th-text)' }}
               >
-                Create an account
+                Sign in
               </Link>
             </p>
           </div>

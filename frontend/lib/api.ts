@@ -36,6 +36,12 @@ export const api = {
       }),
     me: () => request<any>('/api/auth/me'),
     logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+    register: (data: { name: string; email: string; password: string; companyId: string }) =>
+      request<{ token: string; user: any }>('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getCompanies: () => request<{ id: string; name: string }[]>('/api/auth/companies'),
   },
 
   // Rooms
