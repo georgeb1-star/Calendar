@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const TEST_MODE = !process.env.RESEND_API_KEY || process.env.EMAIL_TEST_MODE === 'true';
+const resend = !TEST_MODE ? new Resend(process.env.RESEND_API_KEY!) : null;
 const FROM = process.env.RESEND_FROM || 'onboarding@resend.dev';
 
 function formatTime(date: Date) {
@@ -64,11 +65,15 @@ function detailBox(rows: { label: string; value: string }[]) {
 }
 
 async function send(to: string, subject: string, html: string) {
-  if (!resend) {
-    console.log('[Notification] (no RESEND_API_KEY) Would send email:', { to, subject });
+  if (TEST_MODE) {
+    console.log('\n📧 [Email - TEST MODE]');
+    console.log(`   To:      ${to}`);
+    console.log(`   From:    ${FROM}`);
+    console.log(`   Subject: ${subject}`);
+    console.log('─'.repeat(50));
     return;
   }
-  await resend.emails.send({ from: FROM, to, subject, html });
+  await resend!.emails.send({ from: FROM, to, subject, html });
 }
 
 export const notificationService = {
