@@ -1,6 +1,9 @@
 import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 import { PLAN_TOKENS, PRICE_TO_PLAN } from '../config/plans';
+import { notificationService } from './notification.service';
+
+const PLAN_AMOUNTS: Record<string, string> = { FREE: '£0', PRO: '£20', MAX: '£50' };
 
 function getTodayDate(): string {
   const now = new Date();
@@ -65,6 +68,22 @@ export const subscriptionService = {
 
         if (status === 'active') {
           await subscriptionService.syncPlanToTokens(sub.companyId, plan);
+
+          // Send receipt email to COMPANY_ADMIN on new subscription
+          if (event.type === 'customer.subscription.created') {
+            const admin = await prisma.user.findFirst({
+              where: { companyId: sub.companyId, role: 'COMPANY_ADMIN' },
+            });
+            if (admin) {
+              await notificationService.sendSubscriptionReceipt({
+                userEmail: admin.email,
+                userName: admin.name,
+                plan,
+                tokensPerDay: PLAN_TOKENS[plan] ?? 3,
+                amount: PLAN_AMOUNTS[plan] ?? '£0',
+              }).catch(console.error);
+            }
+          }
         } else {
           await subscriptionService.syncPlanToTokens(sub.companyId, 'FREE');
         }

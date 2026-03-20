@@ -182,6 +182,30 @@ export const notificationService = {
     );
   },
 
+  async sendSubscriptionReceipt(data: {
+    userEmail: string;
+    userName: string;
+    plan: string;
+    tokensPerDay: number;
+    amount: string;
+  }) {
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Thank you for subscribing. Your plan has been activated.</p>
+      ${detailBox([
+        { label: 'Plan', value: data.plan },
+        { label: 'Amount', value: data.amount + ' / month' },
+        { label: 'Tokens', value: data.tokensPerDay + ' tokens per day' },
+      ])}
+      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">You can manage your subscription at any time from the Billing page.</p>
+    `;
+    await send(
+      data.userEmail,
+      `Subscription activated: ${data.plan} Plan`,
+      layout('Subscription Confirmed', body)
+    );
+  },
+
   async sendWelcomeEmail(data: { userEmail: string; userName: string }) {
     const body = `
       <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
