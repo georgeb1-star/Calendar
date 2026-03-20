@@ -48,9 +48,12 @@ export const bookingController = {
       res.status(201).json(booking);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create booking';
-      // Overlap constraint violation
-      if (message.includes('P2002') || message.includes('no_overlap') || message.includes('exclusion')) {
-        res.status(409).json({ error: 'This room is already booked for the requested time' });
+      if (message.includes('pending approval')) {
+        res.status(403).json({ error: message });
+        return;
+      }
+      if (message.includes('already booked') || message.includes('P2002') || message.includes('no_overlap') || message.includes('exclusion')) {
+        res.status(409).json({ error: message });
         return;
       }
       res.status(400).json({ error: message });
@@ -72,6 +75,14 @@ export const bookingController = {
         res.status(403).json({ error: message });
         return;
       }
+      if (message.includes('already booked')) {
+        res.status(409).json({ error: message });
+        return;
+      }
+      if (message.includes('not found') || message.includes('Not found')) {
+        res.status(404).json({ error: message });
+        return;
+      }
       res.status(400).json({ error: message });
     }
   },
@@ -88,6 +99,10 @@ export const bookingController = {
       const message = err instanceof Error ? err.message : 'Failed to cancel booking';
       if (message.includes('Not authorized')) {
         res.status(403).json({ error: message });
+        return;
+      }
+      if (message.includes('not found') || message.includes('Not found')) {
+        res.status(404).json({ error: message });
         return;
       }
       res.status(400).json({ error: message });

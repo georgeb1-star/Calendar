@@ -59,11 +59,18 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
-  startNoShowJob();
-  startReminderJob();
-  startRecurringTokensJob();
-});
+export function startServer() {
+  app.listen(PORT, () => {
+    console.log(`Backend running on http://localhost:${PORT}`);
+    startNoShowJob();
+    startReminderJob();
+    startRecurringTokensJob();
+  });
+}
+
+// Start automatically unless imported by tests
+if (require.main === module) {
+  startServer();
+}
 
 export default app;
