@@ -121,6 +121,33 @@ export default function Sidebar() {
             ))}
           </>
         )}
+
+        {user?.role === 'COMPANY_ADMIN' && (
+          <>
+            <div className="pt-5 pb-2 px-3">
+              <div className="h-px w-full mb-3" style={{ backgroundColor: 'var(--th-border)' }} />
+              <p className="text-[9px] font-semibold tracking-[0.2em] uppercase" style={{ color: 'var(--th-muted)' }}>
+                Account
+              </p>
+            </div>
+            <Link
+              href="/billing"
+              className={`flex items-center gap-3 px-3 py-2.5 text-xs font-medium tracking-[0.1em] uppercase transition-colors ${
+                isActive('/billing')
+                  ? 'bg-[#FAF0EE] text-[#E8917A]'
+                  : 'text-[#1A1A1A] hover:bg-[#F2D5CE]/30 hover:text-[#E8917A]'
+              }`}
+            >
+              <span className={isActive('/billing') ? 'text-[#E8917A]' : 'text-[#8A7E78]'}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </span>
+              Billing
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* User */}

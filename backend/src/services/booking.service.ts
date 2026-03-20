@@ -41,7 +41,7 @@ export const bookingService = {
     notes?: string;
     userId: string;
     companyId: string;
-    role: 'EMPLOYEE' | 'ADMIN';
+    role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
   }) {
     const user = await userRepository.findById(data.userId);
     if (!user) throw new Error('User not found');
@@ -128,7 +128,7 @@ export const bookingService = {
     endTime?: string;
     notes?: string;
     requestUserId: string;
-    requestUserRole: 'EMPLOYEE' | 'ADMIN';
+    requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
     requestCompanyId: string;
   }) {
     const existing = await bookingRepository.findById(bookingId);
@@ -215,7 +215,7 @@ export const bookingService = {
     return updated;
   },
 
-  async cancelBooking(bookingId: string, requestUserId: string, requestUserRole: 'EMPLOYEE' | 'ADMIN') {
+  async cancelBooking(bookingId: string, requestUserId: string, requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN') {
     const existing = await bookingRepository.findById(bookingId);
     if (!existing) throw new Error('Booking not found');
 

@@ -6,7 +6,7 @@ const EMPLOYEE_MAX_HOURS = 3;
 export interface BookingValidationInput {
   startTime: Date;
   endTime: Date;
-  role: 'EMPLOYEE' | 'ADMIN';
+  role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
   companyName: string;
   title: string;
 }

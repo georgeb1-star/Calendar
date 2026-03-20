@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PLAN_TOKENS } from '../config/plans';
 
 type TxClient = Omit<
   typeof prisma,
@@ -18,9 +19,11 @@ export const tokenService = {
   async getTodayRow(companyId: string, tx?: TxClient) {
     const client = tx ?? prisma;
     const date = getTodayDate();
+    const sub = await prisma.subscription.findUnique({ where: { companyId } });
+    const tokensTotal = sub ? (PLAN_TOKENS[sub.plan] ?? 3) : 3;
     return client.companyDailyTokens.upsert({
       where: { companyId_date: { companyId, date } },
-      create: { companyId, date, tokensTotal: 3, tokensUsed: 0 },
+      create: { companyId, date, tokensTotal, tokensUsed: 0 },
       update: {},
     });
   },

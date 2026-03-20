@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.routes';
 import bookingRoutes from './routes/booking.routes';
 import roomRoutes from './routes/room.routes';
 import adminRoutes from './routes/admin.routes';
+import billingRoutes from './routes/billing.routes';
+import webhookRoutes from './routes/webhook.routes';
 import { startNoShowJob } from './jobs/noshow.job';
 
 const app = express();
@@ -30,6 +32,9 @@ app.use(cors({
   credentials: true,
 }));
 
+// Webhook route must be registered BEFORE express.json() to receive raw body
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(express.json());
 
 // Routes
@@ -37,6 +42,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

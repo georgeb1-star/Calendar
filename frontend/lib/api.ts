@@ -110,4 +110,20 @@ export const api = {
         }),
     },
   },
+
+  // Billing
+  billing: {
+    subscription: () =>
+      request<{ plan: string; status: string; currentPeriodEnd: string | null; tokensPerDay: number }>('/api/billing/subscription'),
+    checkout: (priceId: string, returnUrl: string) =>
+      request<{ url: string }>('/api/billing/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ priceId, returnUrl }),
+      }),
+    portal: (returnUrl: string) =>
+      request<{ url: string }>('/api/billing/portal', {
+        method: 'POST',
+        body: JSON.stringify({ returnUrl }),
+      }),
+  },
 };

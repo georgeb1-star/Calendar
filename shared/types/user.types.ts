@@ -1,4 +1,4 @@
-export type Role = 'EMPLOYEE' | 'ADMIN';
+export type Role = 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
 
 export interface User {
   id: string;
@@ -27,3 +27,4 @@ export interface JwtPayload {
   email: string;
   name: string;
 }
+
