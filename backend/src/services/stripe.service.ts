@@ -1,9 +1,18 @@
 import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-});
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-02-25.clover',
+    });
+  }
+  return _stripe;
+}
 
 export const stripeService = {
   async getOrCreateCustomer(companyId: string, companyName: string): Promise<string> {
@@ -15,7 +24,7 @@ export const stripeService = {
       return existing.stripeCustomerId;
     }
 
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       name: companyName,
       metadata: { companyId },
     });
@@ -42,7 +51,7 @@ export const stripeService = {
   ): Promise<{ url: string }> {
     const customerId = await stripeService.getOrCreateCustomer(companyId, companyName);
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -60,7 +69,7 @@ export const stripeService = {
       throw new Error('No Stripe customer found for this company');
     }
 
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
       return_url: returnUrl,
     });
@@ -69,7 +78,7 @@ export const stripeService = {
   },
 
   constructWebhookEvent(payload: Buffer, sig: string): Stripe.Event {
-    return stripe.webhooks.constructEvent(
+    return getStripe().webhooks.constructEvent(
       payload,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
