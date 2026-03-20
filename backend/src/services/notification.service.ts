@@ -182,6 +182,56 @@ export const notificationService = {
     );
   },
 
+  async sendPendingApprovalRequest(data: {
+    adminEmail: string;
+    adminName: string;
+    userName: string;
+    userEmail: string;
+    companyName: string;
+  }) {
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.adminName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">A new user has requested to join <strong>${data.companyName}</strong> and is awaiting your approval.</p>
+      ${detailBox([
+        { label: 'Name', value: data.userName },
+        { label: 'Email', value: data.userEmail },
+        { label: 'Company', value: data.companyName },
+      ])}
+      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">Log in to the Townhouse admin panel and go to the Users tab to approve or reject this request.</p>
+    `;
+    await send(
+      data.adminEmail,
+      `New user awaiting approval: ${data.userName}`,
+      layout('New User Request', body)
+    );
+  },
+
+  async sendUserApproved(data: { userEmail: string; userName: string; companyName: string }) {
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Your account for <strong>${data.companyName}</strong> has been <strong>approved</strong>. You can now log in and book meeting rooms.</p>
+      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">Welcome to Townhouse!</p>
+    `;
+    await send(
+      data.userEmail,
+      'Your account has been approved',
+      layout('Account Approved', body)
+    );
+  },
+
+  async sendUserRejected(data: { userEmail: string; userName: string; companyName: string }) {
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Unfortunately your request to join <strong>${data.companyName}</strong> has been declined.</p>
+      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">If you believe this is an error, please contact your company administrator.</p>
+    `;
+    await send(
+      data.userEmail,
+      'Your account request was declined',
+      layout('Account Request Declined', body)
+    );
+  },
+
   async sendSubscriptionReceipt(data: {
     userEmail: string;
     userName: string;

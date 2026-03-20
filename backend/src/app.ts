@@ -10,6 +10,7 @@ import roomRoutes from './routes/room.routes';
 import adminRoutes from './routes/admin.routes';
 import billingRoutes from './routes/billing.routes';
 import webhookRoutes from './routes/webhook.routes';
+import companyUsersRoutes from './routes/companyUsers.routes';
 import { startNoShowJob } from './jobs/noshow.job';
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/company/users', companyUsersRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

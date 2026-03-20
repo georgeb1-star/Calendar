@@ -111,6 +111,16 @@ export const api = {
     },
   },
 
+  // Company user management (COMPANY_ADMIN)
+  companyUsers: {
+    all: () => request<any[]>('/api/company/users'),
+    pending: () => request<any[]>('/api/company/users/pending'),
+    approve: (id: string) =>
+      request<any>(`/api/company/users/${id}/approve`, { method: 'POST' }),
+    reject: (id: string) =>
+      request<any>(`/api/company/users/${id}/reject`, { method: 'POST' }),
+  },
+
   // Billing
   billing: {
     subscription: () =>

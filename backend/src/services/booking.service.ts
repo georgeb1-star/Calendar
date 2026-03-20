@@ -45,6 +45,9 @@ export const bookingService = {
   }) {
     const user = await userRepository.findById(data.userId);
     if (!user) throw new Error('User not found');
+    if (user.status === 'PENDING') {
+      throw new Error('Your account is pending approval. You cannot make bookings until a company admin approves your account.');
+    }
 
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);

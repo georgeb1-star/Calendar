@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface Room {
   id: string;
@@ -63,6 +64,7 @@ export default function BookingModal({
   prefillRoomId, prefillStart, prefillEnd,
   rooms,
 }: BookingModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [roomId, setRoomId] = useState('');
   const [date, setDate] = useState(todayStr());
@@ -134,6 +136,36 @@ export default function BookingModal({
     } finally {
       setLoading(false);
     }
+  }
+
+  // Pending users can view but not book
+  if (isOpen && user?.status === 'PENDING') {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center z-50 p-4"
+        style={{ backgroundColor: 'rgba(26,26,26,0.45)' }}
+        onClick={onClose}
+      >
+        <div className="bg-white w-full max-w-md shadow-2xl p-8 text-center" onClick={e => e.stopPropagation()}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--th-pink-light)' }}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--th-pink)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-base font-medium mb-2" style={{ color: 'var(--th-text)' }}>Account Pending Approval</h2>
+          <p className="text-sm mb-6" style={{ color: 'var(--th-muted)' }}>
+            Your account is awaiting approval from your company admin. You'll be able to book rooms once approved.
+          </p>
+          <button
+            onClick={onClose}
+            className="text-xs font-medium tracking-[0.1em] uppercase px-6 py-2.5 border transition-colors"
+            style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -8,6 +8,7 @@ export interface StoredUser {
   email: string;
   name: string;
   role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
+  status: 'PENDING' | 'ACTIVE';
   companyId: string;
   company: {
     id: string;

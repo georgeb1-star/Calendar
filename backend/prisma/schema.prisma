@@ -19,21 +19,27 @@ model Company {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
   name         String
-  role         Role      @default(EMPLOYEE)
+  role         Role       @default(EMPLOYEE)
+  status       UserStatus @default(ACTIVE)
   companyId    String
-  company      Company   @relation(fields: [companyId], references: [id])
+  company      Company    @relation(fields: [companyId], references: [id])
   bookings     Booking[]
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime   @default(now())
 }
 
 enum Role {
   EMPLOYEE
   ADMIN
   COMPANY_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
 }
 
 enum Plan {
