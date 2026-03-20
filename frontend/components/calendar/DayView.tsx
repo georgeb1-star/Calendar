@@ -26,6 +26,7 @@ interface DayViewProps {
   bookings: Booking[];
   selectedRoom: string;
   onBookSlot: (data: { roomId?: string; start?: string; end?: string }) => void;
+  onClickBooking: (booking: Booking) => void;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -87,7 +88,7 @@ function getCurrentTimeTop(): number {
   return (mins / 60) * HOUR_HEIGHT;
 }
 
-export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlot }: DayViewProps) {
+export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlot, onClickBooking }: DayViewProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isToday = isSameDay(date, new Date());
@@ -243,9 +244,9 @@ export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlo
                   return (
                     <div
                       key={booking.id}
-                      className="absolute z-10"
+                      className="absolute z-10 cursor-pointer"
                       style={{ top: top + 1, height: height - 2, left: leftOff, width: colW }}
-                      onClick={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); onClickBooking(booking); }}
                     >
                       <BookingSlot booking={booking} isOwn={booking.user.id === user?.id} />
                     </div>

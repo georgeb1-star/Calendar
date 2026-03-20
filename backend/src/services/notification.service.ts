@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = 'Townhouse Bookings <bookings@resend.dev>';
+const FROM = process.env.RESEND_FROM || 'onboarding@resend.dev';
 
 function formatTime(date: Date) {
   return date.toLocaleString('en-GB', {
@@ -80,19 +80,27 @@ export const notificationService = {
     startTime: Date;
     endTime: Date;
     status: string;
+    inviteeNames?: string[];
   }) {
     const statusLabel = data.status.charAt(0) + data.status.slice(1).toLowerCase();
+    const rows: { label: string; value: string }[] = [
+      { label: 'Booking', value: data.bookingTitle },
+      { label: 'Room', value: data.roomName },
+      { label: 'Start', value: formatTime(data.startTime) },
+      { label: 'End', value: formatTime(data.endTime) },
+      { label: 'Status', value: statusLabel },
+    ];
+    if (data.inviteeNames && data.inviteeNames.length > 0) {
+      rows.push({ label: 'Invited', value: data.inviteeNames.join(', ') });
+    }
+    const statusNote = data.status === 'PENDING_APPROVAL'
+      ? `<p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">You'll receive another email once your booking is reviewed.</p>`
+      : '';
     const body = `
       <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
       <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Your booking has been received. Here are the details:</p>
-      ${detailBox([
-        { label: 'Booking', value: data.bookingTitle },
-        { label: 'Room', value: data.roomName },
-        { label: 'Start', value: formatTime(data.startTime) },
-        { label: 'End', value: formatTime(data.endTime) },
-        { label: 'Status', value: statusLabel },
-      ])}
-      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">You'll receive another email once your booking is reviewed.</p>
+      ${detailBox(rows)}
+      ${statusNote}
     `;
     await send(
       data.userEmail,

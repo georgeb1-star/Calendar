@@ -113,17 +113,8 @@ export const bookingService = {
       return created;
     });
 
-    notificationService.sendBookingConfirmation({
-      userEmail: user.email,
-      userName: user.name,
-      bookingTitle: formattedTitle,
-      roomName: booking.room.name,
-      startTime,
-      endTime,
-      status,
-    }).catch(console.error);
-
-    // Handle invitees
+    // Handle invitees first so we can include names in the organiser confirmation
+    let inviteeNames: string[] = [];
     if (data.inviteeIds && data.inviteeIds.length > 0) {
       const invitees = await prisma.user.findMany({
         where: {
@@ -140,11 +131,33 @@ export const bookingService = {
           skipDuplicates: true,
         });
 
+        inviteeNames = invitees.map((inv) => inv.name);
+
         for (const invitee of invitees) {
-          notificationService.sendBookingInvite(invitee, booking, user.name).catch(console.error);
+          // Invited colleague gets a booking confirmation email
+          notificationService.sendBookingConfirmation({
+            userEmail: invitee.email,
+            userName: invitee.name,
+            bookingTitle: formattedTitle,
+            roomName: booking.room.name,
+            startTime,
+            endTime,
+            status,
+          }).catch(console.error);
         }
       }
     }
+
+    notificationService.sendBookingConfirmation({
+      userEmail: user.email,
+      userName: user.name,
+      bookingTitle: formattedTitle,
+      roomName: booking.room.name,
+      startTime,
+      endTime,
+      status,
+      inviteeNames: inviteeNames.length > 0 ? inviteeNames : undefined,
+    }).catch(console.error);
 
     return booking;
   },

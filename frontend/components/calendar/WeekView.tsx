@@ -28,6 +28,7 @@ interface WeekViewProps {
   selectedRoom: string;
   onBookSlot: (data: { roomId?: string; start?: string; end?: string }) => void;
   onSelectDay: (date: Date) => void;
+  onClickBooking: (booking: Booking) => void;
 }
 
 function startOfWeek(date: Date): Date {
@@ -99,7 +100,7 @@ function shortRoomName(name: string): string {
   return name.replace(/meeting room/i, 'Rm').replace(/room/i, 'Rm');
 }
 
-export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSlot, onSelectDay }: WeekViewProps) {
+export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSlot, onSelectDay, onClickBooking }: WeekViewProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const today = new Date();
@@ -363,9 +364,9 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                         return (
                           <div
                             key={booking.id}
-                            className="absolute z-10"
+                            className="absolute z-10 cursor-pointer"
                             style={{ top: top + 1, height: height - 2, left: leftOff, width: colW }}
-                            onClick={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); onClickBooking(booking); }}
                           >
                             <BookingSlot
                               booking={booking}
