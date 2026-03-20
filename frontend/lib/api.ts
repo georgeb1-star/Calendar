@@ -59,6 +59,8 @@ export const api = {
   bookings: {
     list: () => request<any[]>('/api/bookings'),
     mine: () => request<any[]>('/api/bookings/mine'),
+    invited: () => request<any[]>('/api/bookings/invited'),
+    colleagues: () => request<{ id: string; name: string; email: string }[]>('/api/bookings/colleagues'),
     create: (data: any) =>
       request<any>('/api/bookings', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -69,6 +71,16 @@ export const api = {
       request<any>(`/api/bookings/${id}/checkin`, { method: 'POST' }),
     tokenBalance: () =>
       request<{ tokensTotal: number; tokensUsed: number; tokensRemaining: number }>('/api/bookings/token-balance'),
+    cancelFromEmail: (token: string) =>
+      request<{ cancelled: boolean; refunded: boolean }>('/api/bookings/cancel-from-email', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+    createRecurring: (data: any) =>
+      request<any>('/api/bookings/recurring', { method: 'POST', body: JSON.stringify(data) }),
+    listRecurring: () => request<any[]>('/api/bookings/recurring'),
+    cancelSeries: (id: string) =>
+      request<any>(`/api/bookings/recurring/${id}`, { method: 'DELETE' }),
   },
 
   // Admin

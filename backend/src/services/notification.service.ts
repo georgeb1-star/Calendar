@@ -134,26 +134,35 @@ export const notificationService = {
     );
   },
 
-  async sendReminder(data: {
-    userEmail: string;
-    userName: string;
-    bookingTitle: string;
-    roomName: string;
-    startTime: Date;
-  }) {
+  async sendReminder(
+    user: { email: string; name: string },
+    booking: { title: string; room: { name: string }; startTime: Date; endTime: Date },
+    cancelToken: string
+  ) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const cancelUrl = `${frontendUrl}/cancel-booking?token=${cancelToken}`;
     const body = `
-      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${user.name},</p>
       <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">This is a reminder that your booking starts in 30 minutes.</p>
       ${detailBox([
-        { label: 'Booking', value: data.bookingTitle },
-        { label: 'Room', value: data.roomName },
-        { label: 'Start', value: formatTime(data.startTime) },
+        { label: 'Booking', value: booking.title },
+        { label: 'Room', value: booking.room.name },
+        { label: 'Start', value: formatTime(booking.startTime) },
+        { label: 'End', value: formatTime(booking.endTime) },
       ])}
-      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">Please remember to check in when you arrive.</p>
+      <p style="margin:0 0 16px;font-size:13px;color:#3D3530;line-height:1.6;">Need to cancel? Use the button below:</p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+        <tr>
+          <td style="background:#E8917A;padding:12px 24px;">
+            <a href="${cancelUrl}" style="font-family:Georgia,serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;text-decoration:none;">Cancel Booking</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:12px;color:#9E9087;line-height:1.6;font-style:italic;">Note: cancellations made within 2 hours of the start time do not receive a token refund.</p>
     `;
     await send(
-      data.userEmail,
-      `Reminder: ${data.bookingTitle} in 30 minutes`,
+      user.email,
+      `Reminder: ${booking.title} in 30 minutes`,
       layout('Booking Reminder', body)
     );
   },
@@ -266,6 +275,51 @@ export const notificationService = {
       data.userEmail,
       'Welcome to Townhouse',
       layout('Welcome to Townhouse', body)
+    );
+  },
+
+  async sendBookingInvite(
+    invitee: { email: string; name: string },
+    booking: { title: string; room: { name: string }; startTime: Date; endTime: Date },
+    organiserName: string
+  ) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${invitee.name},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">You've been invited to a meeting by <strong>${organiserName}</strong>.</p>
+      ${detailBox([
+        { label: 'Meeting', value: booking.title },
+        { label: 'Room', value: booking.room.name },
+        { label: 'Start', value: formatTime(booking.startTime) },
+        { label: 'End', value: formatTime(booking.endTime) },
+        { label: 'Organiser', value: organiserName },
+      ])}
+      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">This booking will appear in your My Bookings page. <a href="${frontendUrl}/my-bookings" style="color:#E8917A;">View your bookings</a></p>
+    `;
+    await send(
+      invitee.email,
+      `You've been invited: ${booking.title}`,
+      layout('Meeting Invitation', body)
+    );
+  },
+
+  async sendTokenDeductionFailed(
+    user: { email: string; name: string },
+    booking: { title: string; startTime: Date }
+  ) {
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${user.name},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">We were unable to deduct tokens for your recurring booking today due to insufficient token balance.</p>
+      ${detailBox([
+        { label: 'Booking', value: booking.title },
+        { label: 'Date', value: formatTime(booking.startTime) },
+      ])}
+      <p style="margin:0;font-size:13px;color:#9E9087;line-height:1.6;">Your booking is still active. Please contact your company administrator to resolve the token balance.</p>
+    `;
+    await send(
+      user.email,
+      `Token deduction failed: ${booking.title}`,
+      layout('Token Deduction Failed', body)
     );
   },
 };

@@ -12,6 +12,8 @@ import billingRoutes from './routes/billing.routes';
 import webhookRoutes from './routes/webhook.routes';
 import companyUsersRoutes from './routes/companyUsers.routes';
 import { startNoShowJob } from './jobs/noshow.job';
+import { startReminderJob } from './jobs/reminder.job';
+import { startRecurringTokensJob } from './jobs/recurringTokens.job';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,6 +62,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
   startNoShowJob();
+  startReminderJob();
+  startRecurringTokensJob();
 });
 
 export default app;

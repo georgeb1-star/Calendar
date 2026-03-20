@@ -8,27 +8,30 @@ datasource db {
 }
 
 model Company {
-  id           String               @id @default(cuid())
-  name         String               @unique
-  color        String               @default("#3B82F6")
-  users        User[]
-  bookings     Booking[]
-  dailyTokens  CompanyDailyTokens[]
-  subscription Subscription?
-  createdAt    DateTime             @default(now())
+  id                String               @id @default(cuid())
+  name              String               @unique
+  color             String               @default("#3B82F6")
+  users             User[]
+  bookings          Booking[]
+  dailyTokens       CompanyDailyTokens[]
+  subscription      Subscription?
+  recurringBookings RecurringBooking[]
+  createdAt         DateTime             @default(now())
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  name         String
-  role         Role       @default(EMPLOYEE)
-  status       UserStatus @default(ACTIVE)
-  companyId    String
-  company      Company    @relation(fields: [companyId], references: [id])
-  bookings     Booking[]
-  createdAt    DateTime   @default(now())
+  id               String          @id @default(cuid())
+  email            String          @unique
+  passwordHash     String
+  name             String
+  role             Role            @default(EMPLOYEE)
+  status           UserStatus      @default(ACTIVE)
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id])
+  bookings         Booking[]
+  recurringBookings RecurringBooking[]
+  bookingInvites   BookingInvite[]
+  createdAt        DateTime        @default(now())
 }
 
 enum Role {
@@ -63,37 +66,42 @@ model Subscription {
 }
 
 model Room {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  capacity  Int
-  amenities String[]
-  isActive  Boolean   @default(true)
-  bookings  Booking[]
-  createdAt DateTime  @default(now())
+  id                String            @id @default(cuid())
+  name              String            @unique
+  capacity          Int
+  amenities         String[]
+  isActive          Boolean           @default(true)
+  bookings          Booking[]
+  recurringBookings RecurringBooking[]
+  createdAt         DateTime          @default(now())
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  title         String
-  roomId        String
-  room          Room          @relation(fields: [roomId], references: [id])
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  companyId     String
-  company       Company       @relation(fields: [companyId], references: [id])
-  startTime     DateTime
-  endTime       DateTime
-  durationHours Float
-  status        BookingStatus @default(PENDING_APPROVAL)
-  checkInTime   DateTime?
-  isNoShow      Boolean       @default(false)
-  notes         String?
-  isPaid        Boolean       @default(false)
-  paymentStatus String?
-  tokenCost     Float         @default(0)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  logs          BookingLog[]
+  id              String           @id @default(cuid())
+  title           String
+  roomId          String
+  room            Room             @relation(fields: [roomId], references: [id])
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id])
+  startTime       DateTime
+  endTime         DateTime
+  durationHours   Float
+  status          BookingStatus    @default(PENDING_APPROVAL)
+  checkInTime     DateTime?
+  isNoShow        Boolean          @default(false)
+  notes           String?
+  isPaid          Boolean          @default(false)
+  paymentStatus   String?
+  tokenCost       Float            @default(0)
+  reminderSentAt  DateTime?
+  recurringId     String?
+  recurring       RecurringBooking? @relation(fields: [recurringId], references: [id])
+  invites         BookingInvite[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  logs            BookingLog[]
 
   @@index([roomId, startTime, endTime])
 }
@@ -105,6 +113,35 @@ enum BookingStatus {
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+model RecurringBooking {
+  id         String    @id @default(cuid())
+  userId     String
+  companyId  String
+  roomId     String
+  title      String
+  notes      String?
+  dayOfWeek  Int       // 1=Mon … 7=Sun (ISO weekday)
+  startTime  String    // "HH:MM"
+  endTime    String    // "HH:MM"
+  endDate    DateTime
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id])
+  company    Company   @relation(fields: [companyId], references: [id])
+  room       Room      @relation(fields: [roomId], references: [id])
+  bookings   Booking[]
+}
+
+model BookingInvite {
+  id        String   @id @default(cuid())
+  bookingId String
+  userId    String
+  createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, userId])
 }
 
 model CompanyDailyTokens {

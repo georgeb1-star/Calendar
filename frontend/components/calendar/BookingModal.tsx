@@ -10,6 +10,12 @@ interface Room {
   capacity: number;
 }
 
+interface Colleague {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -28,6 +34,9 @@ for (let h = 8; h <= 18; h++) {
     TIME_SLOTS.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
   }
 }
+
+// ISO weekday names
+const DOW_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function todayStr(): string {
   const d = new Date();
@@ -59,6 +68,12 @@ function calcDuration(start: string, end: string): { label: string; hours: numbe
   return { label, hours: mins / 60 };
 }
 
+function getIsoDayOfWeek(dateStr: string): number {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  return day === 0 ? 7 : day; // Sunday=7
+}
+
 export default function BookingModal({
   isOpen, onClose, onSuccess,
   prefillRoomId, prefillStart, prefillEnd,
@@ -75,12 +90,27 @@ export default function BookingModal({
   const [loading, setLoading] = useState(false);
   const [tokenBalance, setTokenBalance] = useState<{ tokensTotal: number; tokensUsed: number; tokensRemaining: number } | null>(null);
 
+  // Invite state
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
+  const [selectedInvitees, setSelectedInvitees] = useState<string[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Recurring state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringEndDate, setRecurringEndDate] = useState('');
+  const [recurringResult, setRecurringResult] = useState<{ created: number; skipped: number } | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
     setTitle('');
     setNotes('');
     setError('');
     setTokenBalance(null);
+    setSelectedInvitees([]);
+    setInviteOpen(false);
+    setIsRecurring(false);
+    setRecurringEndDate('');
+    setRecurringResult(null);
     setRoomId(prefillRoomId || rooms[0]?.id || '');
     if (prefillStart) {
       setDate(isoToDateStr(prefillStart));
@@ -95,6 +125,7 @@ export default function BookingModal({
       setEndTime('10:00');
     }
     api.bookings.tokenBalance().then(setTokenBalance).catch(() => {});
+    api.bookings.colleagues().then(setColleagues).catch(() => {});
   }, [isOpen, prefillRoomId, prefillStart, prefillEnd, rooms]);
 
   if (!isOpen) return null;
@@ -106,9 +137,11 @@ export default function BookingModal({
   const tokensAfter = tokenBalance ? tokenBalance.tokensRemaining - tokenCost : null;
   const insufficientTokens = tokenBalance !== null && tokenCost > tokenBalance.tokensRemaining;
 
+  const dayOfWeek = getIsoDayOfWeek(date);
+  const dayName = DOW_NAMES[dayOfWeek];
+
   function handleStartChange(val: string) {
     setStartTime(val);
-    // auto-advance end by 1h
     const [sh, sm] = val.split(':').map(Number);
     const newEndMins = sh * 60 + sm + 60;
     const newEndH = Math.floor(newEndMins / 60);
@@ -117,18 +150,48 @@ export default function BookingModal({
     if (TIME_SLOTS.includes(newEnd)) setEndTime(newEnd);
   }
 
+  function toggleInvitee(id: string) {
+    setSelectedInvitees(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     if (!roomId) { setError('Please select a room.'); return; }
     if (!date) { setError('Please select a date.'); return; }
     if (endTime <= startTime) { setError('End time must be after start time.'); return; }
+    if (isRecurring && !recurringEndDate) { setError('Please select a repeat end date.'); return; }
 
     setLoading(true);
     try {
+      if (isRecurring) {
+        const result = await api.bookings.createRecurring({
+          title,
+          roomId,
+          startTime,
+          endTime,
+          notes: notes || undefined,
+          dayOfWeek,
+          endDate: new Date(recurringEndDate).toISOString(),
+        });
+        setRecurringResult({ created: result.created, skipped: result.skipped });
+        onSuccess();
+        // Don't close immediately — show result
+        return;
+      }
+
       const startISO = new Date(`${date}T${startTime}:00`).toISOString();
       const endISO = new Date(`${date}T${endTime}:00`).toISOString();
-      await api.bookings.create({ title, roomId, startTime: startISO, endTime: endISO, notes: notes || undefined });
+      await api.bookings.create({
+        title,
+        roomId,
+        startTime: startISO,
+        endTime: endISO,
+        notes: notes || undefined,
+        inviteeIds: selectedInvitees.length > 0 ? selectedInvitees : undefined,
+      });
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -168,6 +231,40 @@ export default function BookingModal({
     );
   }
 
+  // Recurring success screen
+  if (recurringResult) {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center z-50 p-4"
+        style={{ backgroundColor: 'rgba(26,26,26,0.45)' }}
+      >
+        <div className="bg-white w-full max-w-md shadow-2xl p-8 text-center">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#E8F5E9' }}>
+            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-base font-medium mb-2" style={{ color: 'var(--th-text)' }}>Recurring Series Created</h2>
+          <p className="text-sm mb-1" style={{ color: 'var(--th-muted)' }}>
+            <strong>{recurringResult.created}</strong> booking{recurringResult.created !== 1 ? 's' : ''} created
+          </p>
+          {recurringResult.skipped > 0 && (
+            <p className="text-sm mb-4" style={{ color: 'var(--th-muted)' }}>
+              <strong>{recurringResult.skipped}</strong> skipped due to conflicts
+            </p>
+          )}
+          <button
+            onClick={onClose}
+            className="text-xs font-medium tracking-[0.1em] uppercase px-6 py-2.5 border transition-colors"
+            style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -175,7 +272,7 @@ export default function BookingModal({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-lg shadow-2xl"
+        className="bg-white w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -361,6 +458,103 @@ export default function BookingModal({
             />
           </div>
 
+          {/* Invite colleagues */}
+          {colleagues.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setInviteOpen(o => !o)}
+                className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
+                style={{ color: 'var(--th-muted)' }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Invite colleagues
+                {selectedInvitees.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[9px] rounded-full" style={{ backgroundColor: 'var(--th-pink)', color: '#fff' }}>
+                    {selectedInvitees.length}
+                  </span>
+                )}
+              </button>
+              {inviteOpen && (
+                <div className="border max-h-36 overflow-y-auto" style={{ borderColor: 'var(--th-border)' }}>
+                  {colleagues.map(c => (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 text-sm"
+                      style={{ color: 'var(--th-text)' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedInvitees.includes(c.id)}
+                        onChange={() => toggleInvitee(c.id)}
+                        className="w-3.5 h-3.5"
+                        style={{ accentColor: 'var(--th-pink)' }}
+                      />
+                      <span className="font-medium text-xs">{c.name}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--th-muted)' }}>{c.email}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedInvitees.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedInvitees.map(id => {
+                    const c = colleagues.find(x => x.id === id);
+                    return c ? (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] border"
+                        style={{ borderColor: 'var(--th-pink-mid)', color: 'var(--th-pink)', backgroundColor: 'var(--th-pink-light)' }}
+                      >
+                        {c.name}
+                        <button type="button" onClick={() => toggleInvitee(id)} className="ml-1 opacity-60 hover:opacity-100">×</button>
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Repeat weekly toggle */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={e => setIsRecurring(e.target.checked)}
+                className="w-3.5 h-3.5"
+                style={{ accentColor: 'var(--th-pink)' }}
+              />
+              <span className="text-[10px] font-semibold tracking-[0.15em] uppercase" style={{ color: 'var(--th-muted)' }}>
+                Repeat weekly
+              </span>
+            </label>
+            {isRecurring && (
+              <div className="mt-3 pl-5 space-y-2">
+                <p className="text-xs" style={{ color: 'var(--th-muted)' }}>
+                  Repeats every <strong>{dayName}</strong> at {startTime}–{endTime}
+                </p>
+                <div>
+                  <label className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--th-muted)' }}>
+                    Repeat until
+                  </label>
+                  <input
+                    type="date"
+                    value={recurringEndDate}
+                    min={date}
+                    onChange={e => setRecurringEndDate(e.target.value)}
+                    required={isRecurring}
+                    className="w-full px-3 py-2 border text-sm focus:outline-none bg-white"
+                    style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Actions */}
           <div className="flex gap-3 pt-1">
             <button
@@ -379,7 +573,7 @@ export default function BookingModal({
               className="flex-1 py-3 text-xs font-semibold tracking-[0.2em] uppercase transition-opacity disabled:opacity-50"
               style={{ backgroundColor: 'var(--th-pink)', color: '#ffffff' }}
             >
-              {loading ? 'Booking…' : 'Confirm booking'}
+              {loading ? 'Booking…' : isRecurring ? 'Create series' : 'Confirm booking'}
             </button>
           </div>
         </form>

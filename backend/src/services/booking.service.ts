@@ -42,6 +42,7 @@ export const bookingService = {
     userId: string;
     companyId: string;
     role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
+    inviteeIds?: string[];
   }) {
     const user = await userRepository.findById(data.userId);
     if (!user) throw new Error('User not found');
@@ -121,6 +122,29 @@ export const bookingService = {
       endTime,
       status,
     }).catch(console.error);
+
+    // Handle invitees
+    if (data.inviteeIds && data.inviteeIds.length > 0) {
+      const invitees = await prisma.user.findMany({
+        where: {
+          id: { in: data.inviteeIds },
+          companyId: data.companyId,
+          status: 'ACTIVE',
+          NOT: { id: data.userId },
+        },
+      });
+
+      if (invitees.length > 0) {
+        await prisma.bookingInvite.createMany({
+          data: invitees.map((inv) => ({ bookingId: booking.id, userId: inv.id })),
+          skipDuplicates: true,
+        });
+
+        for (const invitee of invitees) {
+          notificationService.sendBookingInvite(invitee, booking, user.name).catch(console.error);
+        }
+      }
+    }
 
     return booking;
   },
@@ -332,5 +356,32 @@ export const bookingService = {
 
   getPendingBookings() {
     return bookingRepository.findPending();
+  },
+
+  async getInvitedBookings(userId: string) {
+    return prisma.booking.findMany({
+      where: {
+        invites: { some: { userId } },
+        status: { notIn: ['CANCELLED', 'REJECTED', 'NO_SHOW'] },
+      },
+      include: {
+        room: true,
+        user: { select: { id: true, name: true, email: true, companyId: true } },
+        company: { select: { id: true, name: true, color: true } },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+  },
+
+  async getColleagues(userId: string, companyId: string) {
+    return prisma.user.findMany({
+      where: {
+        companyId,
+        status: 'ACTIVE',
+        NOT: { id: userId },
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    });
   },
 };

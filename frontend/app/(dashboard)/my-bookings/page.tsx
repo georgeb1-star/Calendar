@@ -15,17 +15,21 @@ interface Booking {
   checkInTime: string | null;
   room: { id: string; name: string; capacity: number };
   notes?: string | null;
+  recurringId?: string | null;
+  _source?: 'mine' | 'invited';
 }
 
 function canCheckIn(booking: Booking): boolean {
   if (booking.status !== 'ACTIVE') return false;
   if (booking.checkInTime) return false;
+  if (booking._source === 'invited') return false;
   const now = Date.now();
   const start = new Date(booking.startTime).getTime();
   return now >= start - 10 * 60 * 1000 && now <= start + 15 * 60 * 1000;
 }
 
 function canCancel(booking: Booking): boolean {
+  if (booking._source === 'invited') return false;
   return ['ACTIVE', 'PENDING_APPROVAL'].includes(booking.status);
 }
 
@@ -34,12 +38,20 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancellingSeriesId, setCancellingSeriesId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await api.bookings.mine();
-      setBookings(data);
+      const [mine, invited] = await Promise.all([
+        api.bookings.mine(),
+        api.bookings.invited(),
+      ]);
+      const combined: Booking[] = [
+        ...mine.map((b: any) => ({ ...b, _source: 'mine' as const })),
+        ...invited.map((b: any) => ({ ...b, _source: 'invited' as const })),
+      ].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+      setBookings(combined);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load bookings');
     } finally {
@@ -56,6 +68,19 @@ export default function MyBookingsPage() {
       load();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to cancel');
+    }
+  }
+
+  async function handleCancelSeries(recurringId: string) {
+    if (!confirm('Cancel the entire recurring series? All future bookings will be cancelled.')) return;
+    setCancellingSeriesId(recurringId);
+    try {
+      await api.bookings.cancelSeries(recurringId);
+      load();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to cancel series');
+    } finally {
+      setCancellingSeriesId(null);
     }
   }
 
@@ -89,7 +114,7 @@ export default function MyBookingsPage() {
     <div className="px-6 py-8 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-800">My Bookings</h1>
-        <p className="text-slate-500 text-sm mt-1">All your room bookings</p>
+        <p className="text-slate-500 text-sm mt-1">Your bookings and meetings you've been invited to</p>
       </div>
 
       {error && (
@@ -122,9 +147,21 @@ export default function MyBookingsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {bookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-slate-50/50">
+                <tr key={booking.id + booking._source} className="hover:bg-slate-50/50">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-800 truncate max-w-48">{booking.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-slate-800 truncate max-w-48">{booking.title}</p>
+                      {booking._source === 'invited' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-500 tracking-wide uppercase">
+                          Invited
+                        </span>
+                      )}
+                      {booking.recurringId && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded border text-purple-600 tracking-wide uppercase" style={{ borderColor: '#C4BCEF' }}>
+                          Recurring
+                        </span>
+                      )}
+                    </div>
                     {booking.notes && (
                       <p className="text-slate-400 text-xs truncate max-w-48">{booking.notes}</p>
                     )}
@@ -141,13 +178,22 @@ export default function MyBookingsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
                       {canCheckIn(booking) && (
                         <button
                           onClick={() => handleCheckIn(booking.id)}
                           className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors"
                         >
                           Check in
+                        </button>
+                      )}
+                      {canCancel(booking) && booking.recurringId && (
+                        <button
+                          onClick={() => handleCancelSeries(booking.recurringId!)}
+                          disabled={cancellingSeriesId === booking.recurringId}
+                          className="px-3 py-1 border border-purple-200 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 text-purple-600 text-xs rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          Cancel series
                         </button>
                       )}
                       {canCancel(booking) && (
