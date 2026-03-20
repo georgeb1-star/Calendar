@@ -127,6 +127,7 @@ export default function UserTable() {
             >
               <option value="EMPLOYEE">Employee</option>
               <option value="ADMIN">Admin</option>
+              <option value="COMPANY_ADMIN">Company Admin</option>
             </select>
             <div className="flex gap-2">
               <button
@@ -172,6 +173,8 @@ export default function UserTable() {
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                     u.role === 'ADMIN'
                       ? 'bg-purple-100 text-purple-700'
+                      : u.role === 'COMPANY_ADMIN'
+                      ? 'bg-blue-100 text-blue-700'
                       : 'bg-slate-100 text-slate-600'
                   }`}>
                     {u.role}
