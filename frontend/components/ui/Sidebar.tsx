@@ -40,7 +40,12 @@ const adminItems = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -49,39 +54,50 @@ export default function Sidebar() {
       ? pathname === '/calendar' || pathname === '/'
       : pathname.startsWith(href);
 
-  return (
-    <aside className="w-56 min-h-screen flex flex-col border-r" style={{ borderColor: 'var(--th-border)', backgroundColor: 'var(--th-cream)' }}>
+  const handleNavClick = () => {
+    onClose?.();
+  };
+
+  const sidebarContent = (
+    <aside className="w-56 h-full flex flex-col border-r" style={{ borderColor: 'var(--th-border)', backgroundColor: 'var(--th-cream)' }}>
       {/* Logo */}
-      <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--th-border)' }}>
+      <div className="px-6 py-6 border-b flex items-center justify-between" style={{ borderColor: 'var(--th-border)' }}>
         <div className="flex flex-col items-start gap-1">
-          {/* Townhouse-style window/grid icon */}
           <div className="w-8 h-8 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-px p-0.5 mb-2">
             <div className="bg-[#1A1A1A]" />
             <div className="bg-[#1A1A1A]" />
             <div className="bg-[#1A1A1A]" />
             <div className="bg-[#1A1A1A]" />
           </div>
-          <span
-            className="text-xs font-semibold tracking-[0.2em] uppercase"
-            style={{ color: 'var(--th-text)' }}
-          >
+          <span className="text-xs font-semibold tracking-[0.2em] uppercase" style={{ color: 'var(--th-text)' }}>
             Townhouse
           </span>
-          <span
-            className="text-[10px] tracking-[0.12em] uppercase"
-            style={{ color: 'var(--th-muted)' }}
-          >
+          <span className="text-[10px] tracking-[0.12em] uppercase" style={{ color: 'var(--th-muted)' }}>
             Meeting Rooms
           </span>
         </div>
+        {/* Close button — mobile only */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 rounded"
+            style={{ color: 'var(--th-muted)' }}
+            aria-label="Close menu"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-5 space-y-0.5">
+      <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            onClick={handleNavClick}
             className={`flex items-center gap-3 px-3 py-2.5 text-xs font-medium tracking-[0.1em] uppercase transition-colors ${
               isActive(item.href)
                 ? 'bg-[#FAF0EE] text-[#E8917A]'
@@ -107,6 +123,7 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={handleNavClick}
                 className={`flex items-center gap-3 px-3 py-2.5 text-xs font-medium tracking-[0.1em] uppercase transition-colors ${
                   isActive(item.href)
                     ? 'bg-[#FAF0EE] text-[#E8917A]'
@@ -132,6 +149,7 @@ export default function Sidebar() {
             </div>
             <Link
               href="/billing"
+              onClick={handleNavClick}
               className={`flex items-center gap-3 px-3 py-2.5 text-xs font-medium tracking-[0.1em] uppercase transition-colors ${
                 isActive('/billing')
                   ? 'bg-[#FAF0EE] text-[#E8917A]'
@@ -183,5 +201,29 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex min-h-screen flex-shrink-0">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div className="md:hidden fixed inset-0 z-40 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40"
+            onClick={onClose}
+          />
+          {/* Drawer */}
+          <div className="relative z-50 flex h-full">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -97,7 +97,7 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Header */}
       <div className="mb-8">
         <h1
@@ -124,7 +124,7 @@ export default function BillingPage() {
       )}
 
       {/* Plan cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.key;
           return (
@@ -186,7 +186,7 @@ export default function BillingPage() {
       {/* Manage subscription */}
       {isPaidPlan && subscription && (
         <div
-          className="flex items-center justify-between px-5 py-4 rounded border"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 rounded border"
           style={{ borderColor: 'var(--th-border)', backgroundColor: 'var(--th-cream)' }}
         >
           <div className="text-sm" style={{ color: 'var(--th-muted)' }}>
