@@ -7,8 +7,9 @@ import { useEffect } from 'react';
 import ApprovalQueue from '@/components/admin/ApprovalQueue';
 import UserTable from '@/components/admin/UserTable';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
+import CompanyTokenTable from '@/components/admin/CompanyTokenTable';
 
-type Tab = 'approvals' | 'users' | 'analytics';
+type Tab = 'approvals' | 'users' | 'analytics' | 'companies';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -27,6 +28,7 @@ export default function AdminPage() {
     { id: 'approvals', label: 'Approval Queue' },
     { id: 'users', label: 'User Management' },
     { id: 'analytics', label: 'Analytics' },
+    { id: 'companies', label: 'Companies' },
   ];
 
   return (
@@ -57,6 +59,7 @@ export default function AdminPage() {
       {tab === 'approvals' && <ApprovalQueue />}
       {tab === 'users' && <UserTable />}
       {tab === 'analytics' && <AnalyticsDashboard />}
+      {tab === 'companies' && <CompanyTokenTable />}
     </div>
   );
 }

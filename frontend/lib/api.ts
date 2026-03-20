@@ -67,6 +67,8 @@ export const api = {
       request<any>(`/api/bookings/${id}`, { method: 'DELETE' }),
     checkIn: (id: string) =>
       request<any>(`/api/bookings/${id}/checkin`, { method: 'POST' }),
+    tokenBalance: () =>
+      request<{ tokensTotal: number; tokensUsed: number; tokensRemaining: number }>('/api/bookings/token-balance'),
   },
 
   // Admin
@@ -97,6 +99,15 @@ export const api = {
         request<any[]>(`/api/admin/analytics/peak-times${days ? `?days=${days}` : ''}`),
       cancellations: (days?: number) =>
         request<any>(`/api/admin/analytics/cancellations${days ? `?days=${days}` : ''}`),
+    },
+    companies: {
+      list: () =>
+        request<any[]>('/api/admin/companies'),
+      setAllowance: (id: string, tokensTotal: number) =>
+        request<any>(`/api/admin/companies/${id}/tokens`, {
+          method: 'PUT',
+          body: JSON.stringify({ tokensTotal }),
+        }),
     },
   },
 };

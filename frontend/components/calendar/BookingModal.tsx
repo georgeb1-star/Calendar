@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { api } from '@/lib/api';
 
 interface Room {
@@ -71,12 +71,14 @@ export default function BookingModal({
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState<{ tokensTotal: number; tokensUsed: number; tokensRemaining: number } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setTitle('');
     setNotes('');
     setError('');
+    setTokenBalance(null);
     setRoomId(prefillRoomId || rooms[0]?.id || '');
     if (prefillStart) {
       setDate(isoToDateStr(prefillStart));
@@ -90,6 +92,7 @@ export default function BookingModal({
     } else {
       setEndTime('10:00');
     }
+    api.bookings.tokenBalance().then(setTokenBalance).catch(() => {});
   }, [isOpen, prefillRoomId, prefillStart, prefillEnd, rooms]);
 
   if (!isOpen) return null;
@@ -97,6 +100,9 @@ export default function BookingModal({
   const selectedRoom = rooms.find(r => r.id === roomId);
   const endOptions = TIME_SLOTS.filter(t => t > startTime);
   const { label: durationLabel, hours: durationHours } = calcDuration(startTime, endTime);
+  const tokenCost = Math.round((durationHours) * 100) / 100;
+  const tokensAfter = tokenBalance ? tokenBalance.tokensRemaining - tokenCost : null;
+  const insufficientTokens = tokenBalance !== null && tokenCost > tokenBalance.tokensRemaining;
 
   function handleStartChange(val: string) {
     setStartTime(val);
@@ -280,6 +286,34 @@ export default function BookingModal({
             </div>
           )}
 
+          {/* Token cost info */}
+          {durationHours > 0 && tokenBalance !== null && (
+            <div
+              className="px-3 py-2.5 text-xs tracking-wide border"
+              style={{
+                backgroundColor: insufficientTokens ? 'var(--th-pink-light)' : 'var(--th-warm)',
+                borderColor: insufficientTokens ? 'var(--th-pink-mid)' : 'var(--th-border)',
+                color: insufficientTokens ? '#B85A45' : 'var(--th-muted)',
+              }}
+            >
+              {insufficientTokens ? (
+                <span className="font-semibold">
+                  Not enough tokens — {tokenCost} required, {tokenBalance.tokensRemaining.toFixed(2)} remaining today
+                </span>
+              ) : (
+                <span>
+                  Cost: <strong>{tokenCost} token{tokenCost !== 1 ? 's' : ''}</strong>
+                  {tokensAfter !== null && (
+                    <> — <strong>{tokensAfter.toFixed(2)}</strong> remaining after this booking</>
+                  )}
+                </span>
+              )}
+              <div className="mt-1 opacity-75">
+                Cancellations receive a refund only if made 2+ hours before the start time
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           <div>
             <label className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2" style={{ color: 'var(--th-muted)' }}>
@@ -309,7 +343,7 @@ export default function BookingModal({
             </button>
             <button
               type="submit"
-              disabled={loading || !title || !roomId}
+              disabled={loading || !title || !roomId || insufficientTokens}
               className="flex-1 py-3 text-xs font-semibold tracking-[0.2em] uppercase transition-opacity disabled:opacity-50"
               style={{ backgroundColor: 'var(--th-pink)', color: '#ffffff' }}
             >

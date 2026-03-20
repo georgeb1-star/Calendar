@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { bookingService } from '../services/booking.service';
 import { checkinService } from '../services/checkin.service';
+import { tokenService } from '../services/token.service';
 
 export const bookingController = {
   async getAll(_req: AuthRequest, res: Response): Promise<void> {
@@ -96,6 +97,15 @@ export const bookingController = {
       res.json(booking);
     } catch (err: unknown) {
       res.status(400).json({ error: err instanceof Error ? err.message : 'Check-in failed' });
+    }
+  },
+
+  async getTokenBalance(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const balance = await tokenService.getBalance(req.user!.companyId);
+      res.json(balance);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch token balance' });
     }
   },
 };

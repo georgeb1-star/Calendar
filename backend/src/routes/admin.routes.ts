@@ -24,4 +24,8 @@ router.get('/analytics/company-hours', adminController.getCompanyHours as any);
 router.get('/analytics/peak-times', adminController.getPeakTimes as any);
 router.get('/analytics/cancellations', adminController.getCancellations as any);
 
+// Company token management
+router.get('/companies', adminController.getCompanies as any);
+router.put('/companies/:id/tokens', adminController.setCompanyTokens as any);
+
 export default router;

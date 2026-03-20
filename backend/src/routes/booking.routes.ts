@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authMiddleware as any);
 
+router.get('/token-balance', bookingController.getTokenBalance as any);
 router.get('/', bookingController.getAll as any);
 router.get('/mine', bookingController.getMine as any);
 router.post('/', bookingController.create as any);

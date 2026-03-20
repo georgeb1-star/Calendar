@@ -4,6 +4,8 @@ import { authService } from '../services/auth.service';
 import { userRepository } from '../repositories/user.repository';
 import { bookingService } from '../services/booking.service';
 import { analyticsService } from '../services/analytics.service';
+import { tokenService } from '../services/token.service';
+import prisma from '../lib/prisma';
 
 export const adminController = {
   // User management
@@ -106,6 +108,70 @@ export const adminController = {
       res.json(data);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch cancellation stats' });
+    }
+  },
+
+  // Company token management
+  async getCompanies(_req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+
+      const companies = await prisma.company.findMany({
+        include: {
+          _count: { select: { users: true } },
+          dailyTokens: { where: { date: dateStr } },
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      const result = companies.map((c) => {
+        const tokenRow = c.dailyTokens[0];
+        const tokensTotal = tokenRow?.tokensTotal ?? 3;
+        const tokensUsed = tokenRow?.tokensUsed ?? 0;
+        return {
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          tokensTotal,
+          tokensUsed,
+          tokensRemaining: tokensTotal - tokensUsed,
+          userCount: c._count.users,
+        };
+      });
+
+      res.json(result);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch companies' });
+    }
+  },
+
+  async setCompanyTokens(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { tokensTotal } = req.body;
+
+      if (typeof tokensTotal !== 'number' || tokensTotal < 0) {
+        res.status(400).json({ error: 'tokensTotal must be a non-negative number' });
+        return;
+      }
+
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+
+      const row = await prisma.companyDailyTokens.upsert({
+        where: { companyId_date: { companyId: id, date: dateStr } },
+        create: { companyId: id, date: dateStr, tokensTotal, tokensUsed: 0 },
+        update: { tokensTotal },
+      });
+
+      res.json({
+        tokensTotal: row.tokensTotal,
+        tokensUsed: row.tokensUsed,
+        tokensRemaining: row.tokensTotal - row.tokensUsed,
+      });
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to update token allowance' });
     }
   },
 };

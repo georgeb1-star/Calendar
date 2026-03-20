@@ -2,12 +2,31 @@ import { bookingRepository } from '../repositories/booking.repository';
 import { userRepository } from '../repositories/user.repository';
 import { bookingRulesService } from './booking-rules.service';
 import { notificationService } from './notification.service';
+import { tokenService } from './token.service';
+import prisma from '../lib/prisma';
+
+const bookingWithDetails = {
+  room: true,
+  user: { select: { id: true, name: true, email: true, companyId: true } },
+  company: { select: { id: true, name: true, color: true } },
+} as const;
+
+function calcTokenCost(startTime: Date, endTime: Date): number {
+  const mins = (endTime.getTime() - startTime.getTime()) / 1000 / 60;
+  return Math.round((mins / 60) * 100) / 100;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
 
 export const bookingService = {
   async getAllBookings() {
-    const bookings = await bookingRepository.findAll();
-    // Public visibility: return company name + time, scrub private details for others
-    return bookings;
+    return bookingRepository.findAll();
   },
 
   async getUserBookings(userId: string) {
@@ -30,10 +49,11 @@ export const bookingService = {
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);
 
-    const conflict = await bookingRepository.findOverlapping(data.roomId, startTime, endTime);
-    if (conflict) {
-      throw new Error('This room is already booked during that time. Please choose a different time or room.');
+    if (!isSameDay(startTime, endTime)) {
+      throw new Error('Booking must start and end on the same calendar day');
     }
+
+    const tokenCost = calcTokenCost(startTime, endTime);
 
     const { status, durationHours, formattedTitle } = bookingRulesService.validate({
       startTime,
@@ -43,23 +63,50 @@ export const bookingService = {
       title: data.title,
     });
 
-    const booking = await bookingRepository.create({
-      title: formattedTitle,
-      roomId: data.roomId,
-      userId: data.userId,
-      companyId: data.companyId,
-      startTime,
-      endTime,
-      durationHours,
-      status,
-      notes: data.notes,
-    });
+    const booking = await prisma.$transaction(async (tx) => {
+      // Check conflict
+      const conflict = await tx.booking.findFirst({
+        where: {
+          roomId: data.roomId,
+          status: { notIn: ['CANCELLED', 'REJECTED', 'NO_SHOW'] },
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+        },
+      });
+      if (conflict) {
+        throw new Error('This room is already booked during that time. Please choose a different time or room.');
+      }
 
-    await bookingRepository.addLog({
-      bookingId: booking.id,
-      action: 'CREATED',
-      actorId: data.userId,
-      metadata: { status, durationHours },
+      // Deduct tokens
+      await tokenService.deductTokens(data.companyId, tokenCost, tx);
+
+      // Create booking
+      const created = await tx.booking.create({
+        data: {
+          title: formattedTitle,
+          roomId: data.roomId,
+          userId: data.userId,
+          companyId: data.companyId,
+          startTime,
+          endTime,
+          durationHours,
+          status,
+          notes: data.notes,
+          tokenCost,
+        },
+        include: bookingWithDetails,
+      });
+
+      await tx.bookingLog.create({
+        data: {
+          bookingId: created.id,
+          action: 'CREATED',
+          actorId: data.userId,
+          metadata: { status, durationHours, tokenCost } as any,
+        },
+      });
+
+      return created;
     });
 
     notificationService.sendBookingConfirmation({
@@ -87,7 +134,6 @@ export const bookingService = {
     const existing = await bookingRepository.findById(bookingId);
     if (!existing) throw new Error('Booking not found');
 
-    // Only own booking or admin
     if (existing.userId !== data.requestUserId && data.requestUserRole !== 'ADMIN') {
       throw new Error('Not authorized to edit this booking');
     }
@@ -103,14 +149,13 @@ export const bookingService = {
     const endTime = data.endTime ? new Date(data.endTime) : existing.endTime;
 
     if (data.startTime || data.endTime) {
-      const conflict = await bookingRepository.findOverlapping(existing.roomId, startTime, endTime, bookingId);
-      if (conflict) {
-        throw new Error('This room is already booked during that time. Please choose a different time or room.');
+      if (!isSameDay(startTime, endTime)) {
+        throw new Error('Booking must start and end on the same calendar day');
       }
     }
 
     const rawTitle = data.title
-      ? data.title.replace(/^\[.*?\]\s*/, '') // strip existing prefix if re-submitted
+      ? data.title.replace(/^\[.*?\]\s*/, '')
       : existing.title.replace(/^\[.*?\]\s*/, '');
 
     const { status, durationHours, formattedTitle } = bookingRulesService.validate({
@@ -121,19 +166,50 @@ export const bookingService = {
       title: rawTitle,
     });
 
-    const updated = await bookingRepository.update(bookingId, {
-      title: formattedTitle,
-      startTime,
-      endTime,
-      durationHours,
-      status,
-      notes: data.notes,
-    });
+    const newTokenCost = calcTokenCost(startTime, endTime);
 
-    await bookingRepository.addLog({
-      bookingId,
-      action: 'UPDATED',
-      actorId: data.requestUserId,
+    const updated = await prisma.$transaction(async (tx) => {
+      if (data.startTime || data.endTime) {
+        const conflict = await tx.booking.findFirst({
+          where: {
+            roomId: existing.roomId,
+            status: { notIn: ['CANCELLED', 'REJECTED', 'NO_SHOW'] },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+            id: { not: bookingId },
+          },
+        });
+        if (conflict) {
+          throw new Error('This room is already booked during that time. Please choose a different time or room.');
+        }
+      }
+
+      await tokenService.adjustTokens(existing.companyId, existing.tokenCost, newTokenCost, tx);
+
+      const result = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          title: formattedTitle,
+          startTime,
+          endTime,
+          durationHours,
+          status,
+          notes: data.notes,
+          tokenCost: newTokenCost,
+        },
+        include: bookingWithDetails,
+      });
+
+      await tx.bookingLog.create({
+        data: {
+          bookingId,
+          action: 'UPDATED',
+          actorId: data.requestUserId,
+          metadata: { newTokenCost, oldTokenCost: existing.tokenCost } as any,
+        },
+      });
+
+      return result;
     });
 
     return updated;
@@ -151,12 +227,32 @@ export const bookingService = {
       throw new Error('Booking is already closed');
     }
 
-    const updated = await bookingRepository.update(bookingId, { status: 'CANCELLED' });
+    // Check refund eligibility: must cancel ≥2 hours before start
+    const now = new Date();
+    const twoHoursBefore = new Date(existing.startTime.getTime() - 2 * 60 * 60 * 1000);
+    const isRefundEligible = now <= twoHoursBefore;
 
-    await bookingRepository.addLog({
-      bookingId,
-      action: 'CANCELLED',
-      actorId: requestUserId,
+    const updated = await prisma.$transaction(async (tx) => {
+      if (isRefundEligible && existing.tokenCost > 0) {
+        await tokenService.refundTokens(existing.companyId, existing.tokenCost, tx);
+      }
+
+      const result = await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'CANCELLED' },
+        include: bookingWithDetails,
+      });
+
+      await tx.bookingLog.create({
+        data: {
+          bookingId,
+          action: 'CANCELLED',
+          actorId: requestUserId,
+          metadata: { refunded: isRefundEligible, tokenCost: existing.tokenCost } as any,
+        },
+      });
+
+      return result;
     });
 
     return updated;
@@ -193,13 +289,28 @@ export const bookingService = {
     if (!booking) throw new Error('Booking not found');
     if (booking.status !== 'PENDING_APPROVAL') throw new Error('Booking is not pending approval');
 
-    const updated = await bookingRepository.update(bookingId, { status: 'REJECTED' });
+    const updated = await prisma.$transaction(async (tx) => {
+      // Admin rejection always refunds
+      if (booking.tokenCost > 0) {
+        await tokenService.refundTokens(booking.companyId, booking.tokenCost, tx);
+      }
 
-    await bookingRepository.addLog({
-      bookingId,
-      action: 'REJECTED',
-      actorId: adminId,
-      metadata: reason ? { reason } : undefined,
+      const result = await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'REJECTED' },
+        include: bookingWithDetails,
+      });
+
+      await tx.bookingLog.create({
+        data: {
+          bookingId,
+          action: 'REJECTED',
+          actorId: adminId,
+          metadata: (reason ? { reason, tokenRefunded: booking.tokenCost } : { tokenRefunded: booking.tokenCost }) as any,
+        },
+      });
+
+      return result;
     });
 
     const user = await userRepository.findById(booking.userId);
