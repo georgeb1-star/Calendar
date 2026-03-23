@@ -178,7 +178,7 @@ export default function SignupPage() {
                 onChange={e => setLocationId(e.target.value)}
                 required
                 className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors appearance-none"
-                style={{ borderColor: 'var(--th-border)', color: locationId ? 'var(--th-text)' : '#C5BDB9' }}
+                style={{ borderColor: 'var(--th-border)', color: locationId ? '#000000' : '#C5BDB9' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               >
