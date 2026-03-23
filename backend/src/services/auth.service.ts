@@ -13,6 +13,19 @@ function formatUser(user: any) {
     status: user.status,
     companyId: user.companyId,
     company: user.company,
+    locationId: user.locationId ?? null,
+    location: user.location ?? null,
+  };
+}
+
+function buildJwtPayload(user: any) {
+  return {
+    userId: user.id,
+    companyId: user.companyId,
+    locationId: user.locationId ?? null,
+    role: user.role,
+    email: user.email,
+    name: user.name,
   };
 }
 
@@ -24,15 +37,7 @@ export const authService = {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new Error('Invalid credentials');
 
-    const payload = {
-      userId: user.id,
-      companyId: user.companyId,
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    };
-
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', {
+    const token = jwt.sign(buildJwtPayload(user), process.env.JWT_SECRET || 'secret', {
       expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
     });
 
@@ -49,59 +54,63 @@ export const authService = {
     email: string;
     password: string;
     name: string;
-    companyId: string;
-    role?: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
+    locationId: string;
+    role?: 'EMPLOYEE' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN';
   }) {
+    const location = await prisma.location.findUnique({
+      where: { id: data.locationId },
+      select: { companyId: true },
+    });
+    if (!location) throw new Error('Location not found');
+
     const passwordHash = await bcrypt.hash(data.password, 10);
-    // Admin-created users are immediately ACTIVE
     return userRepository.create({
       email: data.email,
       passwordHash,
       name: data.name,
-      companyId: data.companyId,
-      role: data.role,
+      companyId: location.companyId,
+      locationId: data.locationId,
+      role: data.role as any,
       status: 'ACTIVE',
     });
   },
 
-  async register(data: { name: string; email: string; password: string; companyId: string }) {
+  async register(data: { name: string; email: string; password: string; locationId: string }) {
     const existing = await userRepository.findByEmail(data.email);
     if (existing) throw new Error('Email already in use');
 
+    const location = await prisma.location.findUnique({
+      where: { id: data.locationId },
+      include: { company: true },
+    });
+    if (!location) throw new Error('Location not found');
+
     const passwordHash = await bcrypt.hash(data.password, 10);
-    // Self-registered users start as PENDING
     const user = await userRepository.create({
       email: data.email,
       passwordHash,
       name: data.name,
-      companyId: data.companyId,
+      companyId: location.companyId,
+      locationId: data.locationId,
       role: 'EMPLOYEE',
       status: 'PENDING',
     });
 
-    const payload = {
-      userId: user.id,
-      companyId: user.companyId,
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    };
-
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', {
+    const token = jwt.sign(buildJwtPayload(user), process.env.JWT_SECRET || 'secret', {
       expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
     });
 
-    // Notify COMPANY_ADMIN of the company (if one exists)
-    const companyAdmin = await prisma.user.findFirst({
-      where: { companyId: data.companyId, role: 'COMPANY_ADMIN' },
+    // Notify OFFICE_ADMIN of this location (if one exists)
+    const officeAdmin = await prisma.user.findFirst({
+      where: { locationId: data.locationId, role: 'OFFICE_ADMIN' },
     });
-    if (companyAdmin) {
+    if (officeAdmin) {
       notificationService.sendPendingApprovalRequest({
-        adminEmail: companyAdmin.email,
-        adminName: companyAdmin.name,
+        adminEmail: officeAdmin.email,
+        adminName: officeAdmin.name,
         userName: user.name,
         userEmail: user.email,
-        companyName: user.company.name,
+        companyName: location.name,
       }).catch(console.error);
     }
 
@@ -110,5 +119,13 @@ export const authService = {
       .catch(console.error);
 
     return { token, user: formatUser(user) };
+  },
+
+  async getLocations() {
+    return prisma.location.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, address: true },
+      orderBy: { name: 'asc' },
+    });
   },
 };

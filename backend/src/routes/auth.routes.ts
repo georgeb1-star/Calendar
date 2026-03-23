@@ -8,6 +8,8 @@ router.post('/login', authController.login);
 router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.me as any);
 router.post('/register', authController.register);
-router.get('/companies', authController.getCompanies);
+router.get('/locations', authController.getLocations);
+// Keep /companies as an alias for backward compat (returns same location list)
+router.get('/companies', authController.getLocations);
 
 export default router;

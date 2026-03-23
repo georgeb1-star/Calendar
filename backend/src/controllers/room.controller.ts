@@ -1,11 +1,21 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../types';
 import { roomRepository } from '../repositories/room.repository';
+import prisma from '../lib/prisma';
 
 export const roomController = {
-  async getAll(_req: Request, res: Response): Promise<void> {
+  async getAll(req: AuthRequest | Request, res: Response): Promise<void> {
     try {
-      const rooms = await roomRepository.findAll();
+      const authReq = req as AuthRequest;
+      const locationId = authReq.user?.locationId;
+
+      const rooms = locationId
+        ? await prisma.room.findMany({
+            where: { locationId, isActive: true },
+            orderBy: { name: 'asc' },
+          })
+        : await roomRepository.findAll();
+
       res.json(rooms);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch rooms' });
@@ -59,7 +69,16 @@ export const roomController = {
         res.status(400).json({ error: 'name and capacity are required' });
         return;
       }
-      const room = await roomRepository.create({ name, capacity, amenities });
+
+      const locationId = req.user!.locationId;
+      if (!locationId) {
+        res.status(400).json({ error: 'No location associated with your account' });
+        return;
+      }
+
+      const room = await prisma.room.create({
+        data: { name, capacity: Number(capacity), amenities: amenities ?? [], locationId },
+      });
       res.status(201).json(room);
     } catch (err: unknown) {
       res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to create room' });

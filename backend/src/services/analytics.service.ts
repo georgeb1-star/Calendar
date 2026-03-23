@@ -13,10 +13,23 @@ function getDateRange(days = 30) {
 }
 
 export const analyticsService = {
-  async getUtilisation(days = 30) {
+  async getUtilisation(days = 30, locationId?: string | null) {
     const { from, to } = getDateRange(days);
-    const rooms = await roomRepository.findAll();
-    const stats = await bookingRepository.getUtilisationStats(from, to);
+
+    const rooms = locationId
+      ? await prisma.room.findMany({ where: { locationId, isActive: true }, orderBy: { name: 'asc' } })
+      : await roomRepository.findAll();
+
+    const stats = await prisma.booking.groupBy({
+      by: ['roomId'],
+      where: {
+        startTime: { gte: from },
+        endTime: { lte: to },
+        status: { in: ['ACTIVE', 'COMPLETED'] },
+        ...(locationId ? { locationId } : {}),
+      },
+      _sum: { durationHours: true },
+    });
 
     const totalAvailableHoursPerRoom = days * BUSINESS_HOURS_PER_DAY;
 
@@ -34,9 +47,20 @@ export const analyticsService = {
     });
   },
 
-  async getCompanyHours(days = 30) {
+  async getCompanyHours(days = 30, locationId?: string | null) {
     const { from, to } = getDateRange(days);
-    const stats = await bookingRepository.getCompanyHours(from, to);
+
+    const stats = await prisma.booking.groupBy({
+      by: ['companyId'],
+      where: {
+        startTime: { gte: from },
+        endTime: { lte: to },
+        status: { in: ['ACTIVE', 'COMPLETED'] },
+        ...(locationId ? { locationId } : {}),
+      },
+      _sum: { durationHours: true },
+      _count: true,
+    });
 
     const companyIds = stats.map((s) => s.companyId);
     const companies = await prisma.company.findMany({
@@ -55,11 +79,19 @@ export const analyticsService = {
     });
   },
 
-  async getPeakTimes(days = 30) {
+  async getPeakTimes(days = 30, locationId?: string | null) {
     const { from, to } = getDateRange(days);
-    const bookings = await bookingRepository.getPeakTimes(from, to);
 
-    // Build hour × day matrix
+    const bookings = await prisma.booking.findMany({
+      where: {
+        startTime: { gte: from },
+        endTime: { lte: to },
+        status: { in: ['ACTIVE', 'COMPLETED'] },
+        ...(locationId ? { locationId } : {}),
+      },
+      select: { startTime: true },
+    });
+
     const matrix: Record<string, number> = {};
     for (const b of bookings) {
       const hour = b.startTime.getHours();
@@ -74,9 +106,17 @@ export const analyticsService = {
     });
   },
 
-  async getCancellations(days = 30) {
+  async getCancellations(days = 30, locationId?: string | null) {
     const { from, to } = getDateRange(days);
-    const { total, cancelled, noShow } = await bookingRepository.getCancellationStats(from, to);
+    const where = {
+      createdAt: { gte: from, lte: to },
+      ...(locationId ? { locationId } : {}),
+    };
+
+    const total = await prisma.booking.count({ where });
+    const cancelled = await prisma.booking.count({ where: { ...where, status: 'CANCELLED' } });
+    const noShow = await prisma.booking.count({ where: { ...where, status: 'NO_SHOW' } });
+
     return {
       totalBookings: total,
       cancelled,

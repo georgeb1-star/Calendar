@@ -1,11 +1,10 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 
-// Allows OFFICE_ADMIN and GLOBAL_ADMIN (replaces old ADMIN check)
-export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
+export function requireOfficeAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
   const role = req.user?.role;
   if (!role || !['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'].includes(role)) {
-    res.status(403).json({ error: 'Admin access required' });
+    res.status(403).json({ error: 'Office admin access required' });
     return;
   }
   next();

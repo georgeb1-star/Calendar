@@ -26,7 +26,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// Auth
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -36,12 +35,13 @@ export const api = {
       }),
     me: () => request<any>('/api/auth/me'),
     logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
-    register: (data: { name: string; email: string; password: string; companyId: string }) =>
+    register: (data: { name: string; email: string; password: string; locationId: string }) =>
       request<{ token: string; user: any }>('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    getCompanies: () => request<{ id: string; name: string }[]>('/api/auth/companies'),
+    getLocations: () =>
+      request<{ id: string; name: string; address?: string }[]>('/api/auth/locations'),
   },
 
   // Rooms
@@ -88,7 +88,7 @@ export const api = {
     },
   },
 
-  // Admin
+  // Admin (OFFICE_ADMIN — scoped to their location automatically by backend)
   admin: {
     users: {
       list: () => request<any[]>('/api/admin/users'),
@@ -117,18 +117,15 @@ export const api = {
       cancellations: (days?: number) =>
         request<any>(`/api/admin/analytics/cancellations${days ? `?days=${days}` : ''}`),
     },
-    companies: {
-      list: () =>
-        request<any[]>('/api/admin/companies'),
-      setAllowance: (id: string, tokensTotal: number) =>
-        request<any>(`/api/admin/companies/${id}/tokens`, {
-          method: 'PUT',
-          body: JSON.stringify({ tokensTotal }),
-        }),
+    rooms: {
+      list: () => request<any[]>('/api/admin/rooms'),
+    },
+    tokens: {
+      get: () => request<any>('/api/admin/tokens'),
     },
   },
 
-  // Company user management (COMPANY_ADMIN)
+  // Company user management (COMPANY_ADMIN / OFFICE_ADMIN — scoped to location)
   companyUsers: {
     all: () => request<any[]>('/api/company/users'),
     pending: () => request<any[]>('/api/company/users/pending'),
@@ -136,6 +133,35 @@ export const api = {
       request<any>(`/api/company/users/${id}/approve`, { method: 'POST' }),
     reject: (id: string) =>
       request<any>(`/api/company/users/${id}/reject`, { method: 'POST' }),
+  },
+
+  // Locations (public list + GLOBAL_ADMIN management)
+  locations: {
+    list: () => request<{ id: string; name: string; address?: string }[]>('/api/locations'),
+    create: (data: { name: string; address?: string; color?: string }) =>
+      request<any>('/api/locations', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      request<any>(`/api/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deactivate: (id: string) =>
+      request<any>(`/api/locations/${id}`, { method: 'DELETE' }),
+  },
+
+  // Global admin
+  globalAdmin: {
+    locations: () => request<any[]>('/api/global-admin/locations'),
+    locationBookings: (id: string) => request<any[]>(`/api/global-admin/locations/${id}/bookings`),
+    locationPending: (id: string) => request<any[]>(`/api/global-admin/locations/${id}/pending`),
+    locationUsers: (id: string) => request<any[]>(`/api/global-admin/locations/${id}/users`),
+    locationRooms: (id: string) => request<any[]>(`/api/global-admin/locations/${id}/rooms`),
+    locationTokens: (id: string) =>
+      request<{ tokensTotal: number; tokensUsed: number; tokensRemaining: number }>(`/api/global-admin/locations/${id}/tokens`),
+    setLocationTokens: (id: string, tokensTotal: number) =>
+      request<any>(`/api/global-admin/locations/${id}/tokens`, {
+        method: 'PUT',
+        body: JSON.stringify({ tokensTotal }),
+      }),
+    analytics: (days?: number) =>
+      request<any>(`/api/global-admin/analytics${days ? `?days=${days}` : ''}`),
   },
 
   // Billing

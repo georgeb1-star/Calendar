@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { adminController } from '../controllers/admin.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
-import { requireAdmin } from '../middleware/requireAdmin.middleware';
+import { requireOfficeAdmin } from '../middleware/requireOfficeAdmin.middleware';
 
 const router = Router();
 
 router.use(authMiddleware as any);
-router.use(requireAdmin as any);
+router.use(requireOfficeAdmin as any);
 
 // User management
 router.post('/users', adminController.createUser as any);
@@ -24,8 +24,10 @@ router.get('/analytics/company-hours', adminController.getCompanyHours as any);
 router.get('/analytics/peak-times', adminController.getPeakTimes as any);
 router.get('/analytics/cancellations', adminController.getCancellations as any);
 
-// Company token management
-router.get('/companies', adminController.getCompanies as any);
-router.put('/companies/:id/tokens', adminController.setCompanyTokens as any);
+// Location tokens (own location only)
+router.get('/tokens', adminController.getLocationTokens as any);
+
+// Rooms for this location
+router.get('/rooms', adminController.getRooms as any);
 
 export default router;

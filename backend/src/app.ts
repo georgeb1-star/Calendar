@@ -11,6 +11,8 @@ import adminRoutes from './routes/admin.routes';
 import billingRoutes from './routes/billing.routes';
 import webhookRoutes from './routes/webhook.routes';
 import companyUsersRoutes from './routes/companyUsers.routes';
+import locationRoutes from './routes/location.routes';
+import globalAdminRoutes from './routes/global-admin.routes';
 import { startNoShowJob } from './jobs/noshow.job';
 import { startReminderJob } from './jobs/reminder.job';
 import { startRecurringTokensJob } from './jobs/recurringTokens.job';
@@ -25,7 +27,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. mobile, curl) or matching origins
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -47,6 +48,8 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/company/users', companyUsersRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/global-admin', globalAdminRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

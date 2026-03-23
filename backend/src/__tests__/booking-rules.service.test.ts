@@ -14,7 +14,7 @@ function futureDate(offsetDays: number, hour = 10, minute = 0): Date {
 describe('bookingRulesService.validate', () => {
   const base = {
     role: 'EMPLOYEE' as const,
-    companyName: 'Acme',
+    locationName: 'Acme',
     title: 'Standup',
   };
 
@@ -152,7 +152,7 @@ describe('bookingRulesService.validate', () => {
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     const result = bookingRulesService.validate({
       ...base,
-      companyName: 'Townhouse',
+      locationName: 'Townhouse',
       title: 'Weekly Sync',
       startTime: start,
       endTime: end,

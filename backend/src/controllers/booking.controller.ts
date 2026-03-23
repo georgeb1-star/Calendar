@@ -7,9 +7,10 @@ import { tokenService } from '../services/token.service';
 import { recurringService } from '../services/recurring.service';
 
 export const bookingController = {
-  async getAll(_req: AuthRequest, res: Response): Promise<void> {
+  async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const bookings = await bookingService.getAllBookings();
+      const locationId = req.user!.locationId;
+      const bookings = await bookingService.getAllBookings(locationId);
       res.json(bookings);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch bookings' });
@@ -120,7 +121,12 @@ export const bookingController = {
 
   async getTokenBalance(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const balance = await tokenService.getBalance(req.user!.companyId);
+      const locationId = req.user!.locationId;
+      if (!locationId) {
+        res.json({ tokensTotal: 0, tokensUsed: 0, tokensRemaining: 0 });
+        return;
+      }
+      const balance = await tokenService.getBalance(locationId);
       res.json(balance);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch token balance' });
@@ -138,7 +144,7 @@ export const bookingController = {
 
   async getColleagues(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const colleagues = await bookingService.getColleagues(req.user!.userId, req.user!.companyId);
+      const colleagues = await bookingService.getColleagues(req.user!.userId, req.user!.locationId);
       res.json(colleagues);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch colleagues' });
@@ -204,12 +210,19 @@ export const bookingController = {
       }
 
       const user = req.user!;
-      const company = await import('../lib/prisma').then(m => m.default.company.findUnique({ where: { id: user.companyId } }));
-      if (!company) { res.status(400).json({ error: 'Company not found' }); return; }
+      const locationId = user.locationId;
+      if (!locationId) {
+        res.status(400).json({ error: 'GLOBAL_ADMIN cannot create recurring bookings directly' });
+        return;
+      }
+
+      const location = await import('../lib/prisma').then(m => m.default.location.findUnique({ where: { id: locationId } }));
+      if (!location) { res.status(400).json({ error: 'Location not found' }); return; }
 
       const result = await recurringService.createSeries({
         userId: user.userId,
         companyId: user.companyId,
+        locationId,
         roomId,
         title,
         notes,
@@ -218,7 +231,7 @@ export const bookingController = {
         endTime,
         endDate: new Date(endDate),
         role: user.role,
-        companyName: company.name,
+        locationName: location.name,
       });
 
       res.status(201).json({

@@ -9,6 +9,7 @@ const bookingWithDetails = {
   room: true,
   user: { select: { id: true, name: true, email: true, companyId: true } },
   company: { select: { id: true, name: true, color: true } },
+  location: { select: { id: true, name: true } },
 } as const;
 
 function calcTokenCost(startTime: Date, endTime: Date): number {
@@ -24,8 +25,18 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
+const isAdminRole = (role: string) =>
+  ['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'].includes(role);
+
 export const bookingService = {
-  async getAllBookings() {
+  async getAllBookings(locationId?: string | null) {
+    if (locationId) {
+      return prisma.booking.findMany({
+        where: { locationId },
+        include: bookingWithDetails,
+        orderBy: { startTime: 'asc' },
+      });
+    }
     return bookingRepository.findAll();
   },
 
@@ -94,7 +105,7 @@ export const bookingService = {
     notes?: string;
     userId: string;
     companyId: string;
-    role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
+    role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN';
     inviteeIds?: string[];
   }) {
     const user = await userRepository.findById(data.userId);
@@ -112,14 +123,6 @@ export const bookingService = {
 
     const tokenCost = calcTokenCost(startTime, endTime);
 
-    const { status, durationHours, formattedTitle } = bookingRulesService.validate({
-      startTime,
-      endTime,
-      role: data.role,
-      companyName: user.company.name,
-      title: data.title,
-    });
-
     const booking = await prisma.$transaction(async (tx) => {
       // Check conflict
       const conflict = await tx.booking.findFirst({
@@ -134,17 +137,33 @@ export const bookingService = {
         throw new Error('This room is already booked during that time. Please choose a different time or room.');
       }
 
-      // Check room capacity
-      const room = await tx.room.findUnique({ where: { id: data.roomId }, select: { capacity: true, name: true } });
-      if (room) {
-        const attendeeCount = 1 + (data.inviteeIds?.length ?? 0);
-        if (attendeeCount > room.capacity) {
-          throw new Error(`This room fits ${room.capacity} people. You have ${attendeeCount} attendees (including yourself).`);
-        }
+      // Get room info (capacity + locationId)
+      const room = await tx.room.findUnique({
+        where: { id: data.roomId },
+        select: {
+          capacity: true,
+          name: true,
+          locationId: true,
+          location: { select: { name: true } },
+        },
+      });
+      if (!room) throw new Error('Room not found');
+
+      const attendeeCount = 1 + (data.inviteeIds?.length ?? 0);
+      if (attendeeCount > room.capacity) {
+        throw new Error(`This room fits ${room.capacity} people. You have ${attendeeCount} attendees (including yourself).`);
       }
 
-      // Deduct tokens
-      await tokenService.deductTokens(data.companyId, tokenCost, tx);
+      const { status, durationHours, formattedTitle } = bookingRulesService.validate({
+        startTime,
+        endTime,
+        role: data.role,
+        locationName: room.location.name,
+        title: data.title,
+      });
+
+      // Deduct tokens from the location's pool
+      await tokenService.deductTokens(room.locationId, tokenCost, tx);
 
       // Create booking
       const created = await tx.booking.create({
@@ -153,6 +172,7 @@ export const bookingService = {
           roomId: data.roomId,
           userId: data.userId,
           companyId: data.companyId,
+          locationId: room.locationId,
           startTime,
           endTime,
           durationHours,
@@ -175,7 +195,7 @@ export const bookingService = {
       return created;
     });
 
-    // Handle invitees first so we can include names in the organiser confirmation
+    // Handle invitees
     let inviteeNames: string[] = [];
     if (data.inviteeIds && data.inviteeIds.length > 0) {
       const invitees = await prisma.user.findMany({
@@ -196,15 +216,14 @@ export const bookingService = {
         inviteeNames = invitees.map((inv) => inv.name);
 
         for (const invitee of invitees) {
-          // Invited colleague gets a booking confirmation email
           notificationService.sendBookingConfirmation({
             userEmail: invitee.email,
             userName: invitee.name,
-            bookingTitle: formattedTitle,
+            bookingTitle: booking.title,
             roomName: booking.room.name,
             startTime,
             endTime,
-            status,
+            status: booking.status,
           }).catch(console.error);
         }
       }
@@ -213,11 +232,11 @@ export const bookingService = {
     notificationService.sendBookingConfirmation({
       userEmail: user.email,
       userName: user.name,
-      bookingTitle: formattedTitle,
+      bookingTitle: booking.title,
       roomName: booking.room.name,
       startTime,
       endTime,
-      status,
+      status: booking.status,
       inviteeNames: inviteeNames.length > 0 ? inviteeNames : undefined,
     }).catch(console.error);
 
@@ -231,13 +250,13 @@ export const bookingService = {
     notes?: string;
     inviteeIds?: string[];
     requestUserId: string;
-    requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
+    requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN';
     requestCompanyId: string;
   }) {
     const existing = await bookingRepository.findById(bookingId);
     if (!existing) throw new Error('Booking not found');
 
-    if (existing.userId !== data.requestUserId && data.requestUserRole !== 'ADMIN') {
+    if (existing.userId !== data.requestUserId && !isAdminRole(data.requestUserRole)) {
       throw new Error('Not authorized to edit this booking');
     }
 
@@ -261,14 +280,6 @@ export const bookingService = {
       ? data.title.replace(/^\[.*?\]\s*/, '')
       : existing.title.replace(/^\[.*?\]\s*/, '');
 
-    const { status, durationHours, formattedTitle } = bookingRulesService.validate({
-      startTime,
-      endTime,
-      role: data.requestUserRole,
-      companyName: user.company.name,
-      title: rawTitle,
-    });
-
     const newTokenCost = calcTokenCost(startTime, endTime);
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -288,7 +299,10 @@ export const bookingService = {
       }
 
       // Check room capacity
-      const room = await tx.room.findUnique({ where: { id: existing.roomId }, select: { capacity: true, name: true } });
+      const room = await tx.room.findUnique({
+        where: { id: existing.roomId },
+        select: { capacity: true, name: true, location: { select: { name: true } } },
+      });
       if (room) {
         const existingInviteeCount = await tx.bookingInvite.count({ where: { bookingId } });
         const newInviteeCount = data.inviteeIds?.length ?? 0;
@@ -298,7 +312,16 @@ export const bookingService = {
         }
       }
 
-      await tokenService.adjustTokens(existing.companyId, existing.tokenCost, newTokenCost, tx);
+      const locationName = room?.location?.name ?? '';
+      const { status, durationHours, formattedTitle } = bookingRulesService.validate({
+        startTime,
+        endTime,
+        role: data.requestUserRole,
+        locationName,
+        title: rawTitle,
+      });
+
+      await tokenService.adjustTokens(existing.locationId, existing.tokenCost, newTokenCost, tx);
 
       const result = await tx.booking.update({
         where: { id: bookingId },
@@ -329,11 +352,15 @@ export const bookingService = {
     return updated;
   },
 
-  async cancelBooking(bookingId: string, requestUserId: string, requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN') {
+  async cancelBooking(
+    bookingId: string,
+    requestUserId: string,
+    requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN'
+  ) {
     const existing = await bookingRepository.findById(bookingId);
     if (!existing) throw new Error('Booking not found');
 
-    if (existing.userId !== requestUserId && requestUserRole !== 'ADMIN') {
+    if (existing.userId !== requestUserId && !isAdminRole(requestUserRole)) {
       throw new Error('Not authorized to cancel this booking');
     }
 
@@ -341,14 +368,13 @@ export const bookingService = {
       throw new Error('Booking is already closed');
     }
 
-    // Check refund eligibility: must cancel ≥2 hours before start
     const now = new Date();
     const twoHoursBefore = new Date(existing.startTime.getTime() - 2 * 60 * 60 * 1000);
     const isRefundEligible = now <= twoHoursBefore;
 
     const updated = await prisma.$transaction(async (tx) => {
       if (isRefundEligible && existing.tokenCost > 0) {
-        await tokenService.refundTokens(existing.companyId, existing.tokenCost, tx);
+        await tokenService.refundTokens(existing.locationId, existing.tokenCost, tx);
       }
 
       const result = await tx.booking.update({
@@ -404,9 +430,8 @@ export const bookingService = {
     if (booking.status !== 'PENDING_APPROVAL') throw new Error('Booking is not pending approval');
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Admin rejection always refunds
       if (booking.tokenCost > 0) {
-        await tokenService.refundTokens(booking.companyId, booking.tokenCost, tx);
+        await tokenService.refundTokens(booking.locationId, booking.tokenCost, tx);
       }
 
       const result = await tx.booking.update({
@@ -441,7 +466,14 @@ export const bookingService = {
     return updated;
   },
 
-  getPendingBookings() {
+  getPendingBookings(locationId?: string | null) {
+    if (locationId) {
+      return prisma.booking.findMany({
+        where: { status: 'PENDING_APPROVAL', locationId },
+        include: bookingWithDetails,
+        orderBy: { createdAt: 'asc' },
+      });
+    }
     return bookingRepository.findPending();
   },
 
@@ -455,15 +487,17 @@ export const bookingService = {
         room: true,
         user: { select: { id: true, name: true, email: true, companyId: true } },
         company: { select: { id: true, name: true, color: true } },
+        location: { select: { id: true, name: true } },
       },
       orderBy: { startTime: 'asc' },
     });
   },
 
-  async getColleagues(userId: string, companyId: string) {
+  async getColleagues(userId: string, locationId: string | null) {
+    if (!locationId) return [];
     return prisma.user.findMany({
       where: {
-        companyId,
+        locationId,
         status: 'ACTIVE',
         NOT: { id: userId },
       },

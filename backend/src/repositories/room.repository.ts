@@ -14,7 +14,7 @@ export const roomRepository = {
     return prisma.room.findUnique({ where: { id } });
   },
 
-  create(data: { name: string; capacity: number; amenities?: string[] }) {
+  create(data: { name: string; capacity: number; amenities?: string[]; locationId: string }) {
     return prisma.room.create({ data });
   },
 

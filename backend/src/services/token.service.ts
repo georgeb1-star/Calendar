@@ -1,5 +1,4 @@
 import prisma from '../lib/prisma';
-import { Prisma } from '@prisma/client';
 import { PLAN_TOKENS } from '../config/plans';
 
 type TxClient = Omit<
@@ -16,20 +15,27 @@ function getTodayDate(): string {
 }
 
 export const tokenService = {
-  async getTodayRow(companyId: string, tx?: TxClient) {
+  async getTodayRow(locationId: string, tx?: TxClient) {
     const client = tx ?? prisma;
     const date = getTodayDate();
-    const sub = await prisma.subscription.findUnique({ where: { companyId } });
+
+    // Look up plan via location → company → subscription
+    const location = await prisma.location.findUnique({
+      where: { id: locationId },
+      include: { company: { include: { subscription: true } } },
+    });
+    const sub = location?.company?.subscription;
     const tokensTotal = sub ? (PLAN_TOKENS[sub.plan] ?? 3) : 3;
-    return client.companyDailyTokens.upsert({
-      where: { companyId_date: { companyId, date } },
-      create: { companyId, date, tokensTotal, tokensUsed: 0 },
+
+    return client.locationDailyTokens.upsert({
+      where: { locationId_date: { locationId, date } },
+      create: { locationId, date, tokensTotal, tokensUsed: 0 },
       update: {},
     });
   },
 
-  async getBalance(companyId: string) {
-    const row = await tokenService.getTodayRow(companyId);
+  async getBalance(locationId: string) {
+    const row = await tokenService.getTodayRow(locationId);
     return {
       tokensTotal: row.tokensTotal,
       tokensUsed: row.tokensUsed,
@@ -37,21 +43,29 @@ export const tokenService = {
     };
   },
 
-  async deductTokens(companyId: string, tokenCost: number, tx: TxClient) {
+  async deductTokens(locationId: string, tokenCost: number, tx: TxClient) {
     const date = getTodayDate();
 
+    // Look up plan for the correct tokensTotal
+    const location = await prisma.location.findUnique({
+      where: { id: locationId },
+      include: { company: { include: { subscription: true } } },
+    });
+    const sub = location?.company?.subscription;
+    const tokensTotal = sub ? (PLAN_TOKENS[sub.plan] ?? 3) : 3;
+
     // Ensure row exists
-    await tx.companyDailyTokens.upsert({
-      where: { companyId_date: { companyId, date } },
-      create: { companyId, date, tokensTotal: 3, tokensUsed: 0 },
+    await tx.locationDailyTokens.upsert({
+      where: { locationId_date: { locationId, date } },
+      create: { locationId, date, tokensTotal, tokensUsed: 0 },
       update: {},
     });
 
     // Lock row and read current values
     const rows = await tx.$queryRaw<Array<{ tokensTotal: number; tokensUsed: number }>>`
       SELECT "tokensTotal", "tokensUsed"
-      FROM "CompanyDailyTokens"
-      WHERE "companyId" = ${companyId} AND "date" = ${date}
+      FROM "LocationDailyTokens"
+      WHERE "locationId" = ${locationId} AND "date" = ${date}
       FOR UPDATE
     `;
 
@@ -65,21 +79,21 @@ export const tokenService = {
       );
     }
 
-    await tx.companyDailyTokens.update({
-      where: { companyId_date: { companyId, date } },
+    await tx.locationDailyTokens.update({
+      where: { locationId_date: { locationId, date } },
       data: { tokensUsed: { increment: tokenCost } },
     });
   },
 
-  async refundTokens(companyId: string, tokenCost: number, tx: TxClient) {
+  async refundTokens(locationId: string, tokenCost: number, tx: TxClient) {
     if (tokenCost <= 0) return;
     const date = getTodayDate();
 
     // Lock row
     const rows = await tx.$queryRaw<Array<{ tokensUsed: number }>>`
       SELECT "tokensUsed"
-      FROM "CompanyDailyTokens"
-      WHERE "companyId" = ${companyId} AND "date" = ${date}
+      FROM "LocationDailyTokens"
+      WHERE "locationId" = ${locationId} AND "date" = ${date}
       FOR UPDATE
     `;
 
@@ -88,23 +102,23 @@ export const tokenService = {
     const currentUsed = rows[0].tokensUsed;
     const newUsed = Math.max(0, currentUsed - tokenCost);
 
-    await tx.companyDailyTokens.update({
-      where: { companyId_date: { companyId, date } },
+    await tx.locationDailyTokens.update({
+      where: { locationId_date: { locationId, date } },
       data: { tokensUsed: newUsed },
     });
   },
 
   async adjustTokens(
-    companyId: string,
+    locationId: string,
     oldCost: number,
     newCost: number,
     tx: TxClient
   ) {
     const diff = newCost - oldCost;
     if (diff > 0) {
-      await tokenService.deductTokens(companyId, diff, tx);
+      await tokenService.deductTokens(locationId, diff, tx);
     } else if (diff < 0) {
-      await tokenService.refundTokens(companyId, Math.abs(diff), tx);
+      await tokenService.refundTokens(locationId, Math.abs(diff), tx);
     }
   },
 };

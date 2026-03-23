@@ -23,7 +23,7 @@ function toDateStr(d: Date): string {
 function nextOccurrence(from: Date, dayOfWeek: number): Date {
   const d = new Date(from);
   d.setHours(0, 0, 0, 0);
-  const currentDow = d.getDay() === 0 ? 7 : d.getDay(); // convert Sun=0 to 7
+  const currentDow = d.getDay() === 0 ? 7 : d.getDay();
   const diff = (dayOfWeek - currentDow + 7) % 7;
   d.setDate(d.getDate() + diff);
   return d;
@@ -33,6 +33,7 @@ export const recurringService = {
   async createSeries(data: {
     userId: string;
     companyId: string;
+    locationId: string;
     roomId: string;
     title: string;
     notes?: string;
@@ -40,13 +41,12 @@ export const recurringService = {
     startTime: string; // "HH:MM"
     endTime: string;   // "HH:MM"
     endDate: Date;
-    role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
-    companyName: string;
+    role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN';
+    locationName: string;
   }) {
     const tokenCost = calcTokenCost(data.startTime, data.endTime);
-    const formattedTitle = `[${data.companyName}] ${data.title}`;
+    const formattedTitle = `[${data.locationName}] ${data.title}`;
 
-    // Compute all occurrence dates
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const endDate = new Date(data.endDate);
@@ -67,11 +67,11 @@ export const recurringService = {
     const created: any[] = [];
     const skipped: Date[] = [];
 
-    // Create the RecurringBooking record first
     const series = await prisma.recurringBooking.create({
       data: {
         userId: data.userId,
         companyId: data.companyId,
+        locationId: data.locationId,
         roomId: data.roomId,
         title: data.title,
         notes: data.notes,
@@ -90,7 +90,6 @@ export const recurringService = {
 
       try {
         await prisma.$transaction(async (tx) => {
-          // Check for conflict
           const conflict = await tx.booking.findFirst({
             where: {
               roomId: data.roomId,
@@ -107,7 +106,7 @@ export const recurringService = {
 
           let isPaid = false;
           if (isToday) {
-            await tokenService.deductTokens(data.companyId, tokenCost, tx);
+            await tokenService.deductTokens(data.locationId, tokenCost, tx);
             isPaid = true;
           }
 
@@ -117,6 +116,7 @@ export const recurringService = {
               roomId: data.roomId,
               userId: data.userId,
               companyId: data.companyId,
+              locationId: data.locationId,
               startTime: startDt,
               endTime: endDt,
               durationHours: tokenCost,
@@ -132,7 +132,6 @@ export const recurringService = {
         });
       } catch (err: any) {
         if (err.message !== 'CONFLICT_SKIP') {
-          // Real error — log and skip
           console.error(`[Recurring] Failed to create booking for ${dateStr}:`, err);
           skipped.push(date);
         }
@@ -142,14 +141,20 @@ export const recurringService = {
     return { series, created, skipped };
   },
 
-  async cancelSeries(recurringId: string, userId: string, userRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN') {
+  async cancelSeries(
+    recurringId: string,
+    userId: string,
+    userRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN'
+  ) {
     const series = await prisma.recurringBooking.findUnique({
       where: { id: recurringId },
       include: { bookings: true },
     });
 
     if (!series) throw new Error('Recurring series not found');
-    if (series.userId !== userId && userRole !== 'ADMIN') {
+
+    const isAdmin = ['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'].includes(userRole);
+    if (series.userId !== userId && !isAdmin) {
       throw new Error('Not authorized to cancel this series');
     }
 
@@ -166,7 +171,7 @@ export const recurringService = {
 
       await prisma.$transaction(async (tx) => {
         if (isRefundEligible && booking.isPaid && booking.tokenCost > 0) {
-          await tokenService.refundTokens(booking.companyId, booking.tokenCost, tx);
+          await tokenService.refundTokens(booking.locationId, booking.tokenCost, tx);
         }
 
         await tx.booking.update({

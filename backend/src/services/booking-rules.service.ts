@@ -6,8 +6,8 @@ const EMPLOYEE_MAX_HOURS = 3;
 export interface BookingValidationInput {
   startTime: Date;
   endTime: Date;
-  role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
-  companyName: string;
+  role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN';
+  locationName: string;
   title: string;
 }
 
@@ -20,7 +20,7 @@ export interface BookingValidationResult {
 export const bookingRulesService = {
   validate(input: BookingValidationInput): BookingValidationResult {
     const now = new Date();
-    const { startTime, endTime, role, companyName, title } = input;
+    const { startTime, endTime, role, locationName, title } = input;
 
     // No past bookings
     if (startTime <= now) {
@@ -50,16 +50,17 @@ export const bookingRulesService = {
       throw new Error('Booking cannot exceed 8 hours');
     }
 
-    // Determine status
+    // Admins bypass approval; employees need approval for bookings > 3h
+    const isAdmin = ['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'].includes(role);
     let status: BookingStatus;
-    if (role === 'ADMIN' || durationHours <= EMPLOYEE_MAX_HOURS) {
+    if (isAdmin || durationHours <= EMPLOYEE_MAX_HOURS) {
       status = 'ACTIVE';
     } else {
       status = 'PENDING_APPROVAL';
     }
 
-    // Format title with company prefix
-    const formattedTitle = `[${companyName}] ${title}`;
+    // Format title with location prefix
+    const formattedTitle = `[${locationName}] ${title}`;
 
     return { status, durationHours, formattedTitle };
   },

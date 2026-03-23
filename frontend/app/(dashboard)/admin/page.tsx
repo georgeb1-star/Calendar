@@ -7,9 +7,11 @@ import { useEffect } from 'react';
 import ApprovalQueue from '@/components/admin/ApprovalQueue';
 import UserTable from '@/components/admin/UserTable';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
-import CompanyTokenTable from '@/components/admin/CompanyTokenTable';
+import RoomTable from '@/components/admin/RoomTable';
 
-type Tab = 'approvals' | 'users' | 'analytics' | 'companies';
+type Tab = 'approvals' | 'users' | 'analytics' | 'rooms';
+
+const OFFICE_ADMIN_ROLES = ['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'];
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -17,28 +19,30 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('approvals');
 
   useEffect(() => {
-    if (!loading && user?.role !== 'ADMIN') {
+    if (!loading && (!user || !OFFICE_ADMIN_ROLES.includes(user.role))) {
       router.push('/calendar');
     }
   }, [user, loading, router]);
 
-  if (loading || user?.role !== 'ADMIN') return null;
+  if (loading || !user || !OFFICE_ADMIN_ROLES.includes(user.role)) return null;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'approvals', label: 'Approval Queue' },
     { id: 'users', label: 'User Management' },
     { id: 'analytics', label: 'Analytics' },
-    { id: 'companies', label: 'Companies' },
+    { id: 'rooms', label: 'Rooms' },
   ];
+
+  const locationLabel = user.location?.name ?? 'Office';
 
   return (
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">Admin Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Manage bookings, users, and view analytics</p>
+        <p className="text-slate-500 text-sm mt-1">{locationLabel} — manage bookings, users, and rooms</p>
       </div>
 
-      {/* Tabs — horizontally scrollable on mobile */}
+      {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto scrollbar-none">
         {tabs.map((t) => (
           <button
@@ -55,11 +59,10 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Tab content */}
       {tab === 'approvals' && <ApprovalQueue />}
       {tab === 'users' && <UserTable />}
       {tab === 'analytics' && <AnalyticsDashboard />}
-      {tab === 'companies' && <CompanyTokenTable />}
+      {tab === 'rooms' && <RoomTable />}
     </div>
   );
 }

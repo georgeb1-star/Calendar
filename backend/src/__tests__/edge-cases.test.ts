@@ -136,7 +136,7 @@ describe('BUG-04: Advance booking boundary', () => {
     const end = new Date(start.getTime() + HOUR);
     expect(() => bookingRulesService.validate({
       startTime: start, endTime: end, role: 'EMPLOYEE',
-      companyName: 'Acme', title: 'Future',
+      locationName: 'Acme', title: 'Future',
     })).toThrow('7 days');
   });
 
@@ -146,7 +146,7 @@ describe('BUG-04: Advance booking boundary', () => {
     const end = new Date(start.getTime() + HOUR);
     expect(() => bookingRulesService.validate({
       startTime: start, endTime: end, role: 'ADMIN',
-      companyName: 'Acme', title: 'Future',
+      locationName: 'Acme', title: 'Future',
     })).toThrow('7 days');
   });
 });
@@ -251,7 +251,7 @@ describe('BUG-10: Duration cap at 8 hours', () => {
     const end = new Date(start.getTime() + 9 * HOUR);
     expect(() => bookingRulesService.validate({
       startTime: start, endTime: end, role: 'ADMIN',
-      companyName: 'Acme', title: 'Marathon',
+      locationName: 'Acme', title: 'Marathon',
     })).toThrow('8 hours');
   });
 
@@ -260,7 +260,7 @@ describe('BUG-10: Duration cap at 8 hours', () => {
     const end = new Date(start.getTime() + 9 * HOUR);
     expect(() => bookingRulesService.validate({
       startTime: start, endTime: end, role: 'ADMIN',
-      companyName: 'Acme', title: 'Long Meeting',
+      locationName: 'Acme', title: 'Long Meeting',
     })).toThrow('8 hours');
   });
 });

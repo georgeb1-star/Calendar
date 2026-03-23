@@ -11,6 +11,7 @@ model Company {
   id                String               @id @default(cuid())
   name              String               @unique
   color             String               @default("#3B82F6")
+  locations         Location[]
   users             User[]
   bookings          Booking[]
   dailyTokens       CompanyDailyTokens[]
@@ -19,25 +20,57 @@ model Company {
   createdAt         DateTime             @default(now())
 }
 
-model User {
-  id               String          @id @default(cuid())
-  email            String          @unique
-  passwordHash     String
-  name             String
-  role             Role            @default(EMPLOYEE)
-  status           UserStatus      @default(ACTIVE)
-  companyId        String
-  company          Company         @relation(fields: [companyId], references: [id])
-  bookings         Booking[]
+model Location {
+  id                String               @id @default(cuid())
+  name              String               @unique
+  address           String?
+  color             String               @default("#3B82F6")
+  isActive          Boolean              @default(true)
+  companyId         String
+  company           Company              @relation(fields: [companyId], references: [id])
+  users             User[]
+  rooms             Room[]
+  bookings          Booking[]
+  dailyTokens       LocationDailyTokens[]
   recurringBookings RecurringBooking[]
-  bookingInvites   BookingInvite[]
-  createdAt        DateTime        @default(now())
+  createdAt         DateTime             @default(now())
+}
+
+model LocationDailyTokens {
+  id          String   @id @default(cuid())
+  locationId  String
+  location    Location @relation(fields: [locationId], references: [id])
+  date        String   // "YYYY-MM-DD"
+  tokensTotal Float    @default(3)
+  tokensUsed  Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([locationId, date])
+}
+
+model User {
+  id                String          @id @default(cuid())
+  email             String          @unique
+  passwordHash      String
+  name              String
+  role              Role            @default(EMPLOYEE)
+  status            UserStatus      @default(ACTIVE)
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id])
+  locationId        String?
+  location          Location?       @relation(fields: [locationId], references: [id])
+  bookings          Booking[]
+  recurringBookings RecurringBooking[]
+  bookingInvites    BookingInvite[]
+  createdAt         DateTime        @default(now())
 }
 
 enum Role {
   EMPLOYEE
-  ADMIN
+  ADMIN         // deprecated — use OFFICE_ADMIN
   COMPANY_ADMIN
+  OFFICE_ADMIN
+  GLOBAL_ADMIN
 }
 
 enum UserStatus {
@@ -66,42 +99,46 @@ model Subscription {
 }
 
 model Room {
-  id                String            @id @default(cuid())
-  name              String            @unique
+  id                String             @id @default(cuid())
+  name              String
   capacity          Int
   amenities         String[]
-  isActive          Boolean           @default(true)
+  isActive          Boolean            @default(true)
+  locationId        String
+  location          Location           @relation(fields: [locationId], references: [id])
   bookings          Booking[]
   recurringBookings RecurringBooking[]
-  createdAt         DateTime          @default(now())
+  createdAt         DateTime           @default(now())
 }
 
 model Booking {
-  id              String           @id @default(cuid())
-  title           String
-  roomId          String
-  room            Room             @relation(fields: [roomId], references: [id])
-  userId          String
-  user            User             @relation(fields: [userId], references: [id])
-  companyId       String
-  company         Company          @relation(fields: [companyId], references: [id])
-  startTime       DateTime
-  endTime         DateTime
-  durationHours   Float
-  status          BookingStatus    @default(PENDING_APPROVAL)
-  checkInTime     DateTime?
-  isNoShow        Boolean          @default(false)
-  notes           String?
-  isPaid          Boolean          @default(false)
-  paymentStatus   String?
-  tokenCost       Float            @default(0)
-  reminderSentAt  DateTime?
-  recurringId     String?
-  recurring       RecurringBooking? @relation(fields: [recurringId], references: [id])
-  invites         BookingInvite[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  logs            BookingLog[]
+  id             String            @id @default(cuid())
+  title          String
+  roomId         String
+  room           Room              @relation(fields: [roomId], references: [id])
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  companyId      String
+  company        Company           @relation(fields: [companyId], references: [id])
+  locationId     String
+  location       Location          @relation(fields: [locationId], references: [id])
+  startTime      DateTime
+  endTime        DateTime
+  durationHours  Float
+  status         BookingStatus     @default(PENDING_APPROVAL)
+  checkInTime    DateTime?
+  isNoShow       Boolean           @default(false)
+  notes          String?
+  isPaid         Boolean           @default(false)
+  paymentStatus  String?
+  tokenCost      Float             @default(0)
+  reminderSentAt DateTime?
+  recurringId    String?
+  recurring      RecurringBooking? @relation(fields: [recurringId], references: [id])
+  invites        BookingInvite[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  logs           BookingLog[]
 
   @@index([roomId, startTime, endTime])
 }
@@ -119,6 +156,7 @@ model RecurringBooking {
   id         String    @id @default(cuid())
   userId     String
   companyId  String
+  locationId String
   roomId     String
   title      String
   notes      String?
@@ -129,6 +167,7 @@ model RecurringBooking {
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id])
   company    Company   @relation(fields: [companyId], references: [id])
+  location   Location  @relation(fields: [locationId], references: [id])
   room       Room      @relation(fields: [roomId], references: [id])
   bookings   Booking[]
 }

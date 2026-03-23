@@ -44,6 +44,7 @@ export const bookingRepository = {
     roomId: string;
     userId: string;
     companyId: string;
+    locationId: string;
     startTime: Date;
     endTime: Date;
     durationHours: number;

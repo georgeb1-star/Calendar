@@ -34,7 +34,8 @@ export function startRecurringTokensJob() {
       for (const booking of bookings) {
         try {
           await prisma.$transaction(async (tx) => {
-            await tokenService.deductTokens(booking.companyId, booking.tokenCost, tx);
+            // Deduct tokens from the booking's location pool
+            await tokenService.deductTokens(booking.locationId, booking.tokenCost, tx);
             await tx.booking.update({
               where: { id: booking.id },
               data: { isPaid: true },
@@ -42,7 +43,6 @@ export function startRecurringTokensJob() {
           });
         } catch (err) {
           console.error(`[RecurringTokens Job] Failed to deduct for booking ${booking.id}:`, err);
-          // Notify the user about the failure
           notificationService.sendTokenDeductionFailed(booking.user, booking).catch(console.error);
         }
       }

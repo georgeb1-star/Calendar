@@ -11,21 +11,29 @@ export const adminController = {
   // User management
   async createUser(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { email, password, name, companyId, role } = req.body;
-      if (!email || !password || !name || !companyId) {
-        res.status(400).json({ error: 'email, password, name, and companyId are required' });
+      const { email, password, name, locationId, role } = req.body;
+      if (!email || !password || !name || !locationId) {
+        res.status(400).json({ error: 'email, password, name, and locationId are required' });
         return;
       }
-      const user = await authService.createUser({ email, password, name, companyId, role });
+      // OFFICE_ADMIN can only create users for their own location
+      if (req.user!.role === 'OFFICE_ADMIN' && req.user!.locationId !== locationId) {
+        res.status(403).json({ error: 'You can only create users for your own location' });
+        return;
+      }
+      const user = await authService.createUser({ email, password, name, locationId, role });
       res.status(201).json(user);
     } catch (err: unknown) {
       res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to create user' });
     }
   },
 
-  async getUsers(_req: AuthRequest, res: Response): Promise<void> {
+  async getUsers(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const users = await userRepository.findAll();
+      const locationId = req.user!.locationId;
+      const users = locationId
+        ? await userRepository.findByLocation(locationId)
+        : await userRepository.findAll();
       res.json(users);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch users' });
@@ -34,6 +42,14 @@ export const adminController = {
 
   async deleteUser(req: AuthRequest, res: Response): Promise<void> {
     try {
+      // OFFICE_ADMIN can only delete users in their location
+      if (req.user!.locationId) {
+        const target = await userRepository.findById(req.params.id);
+        if (!target || target.locationId !== req.user!.locationId) {
+          res.status(403).json({ error: 'User not found in your location' });
+          return;
+        }
+      }
       await userRepository.delete(req.params.id);
       res.json({ message: 'User deleted' });
     } catch (err: unknown) {
@@ -42,9 +58,10 @@ export const adminController = {
   },
 
   // Booking approvals
-  async getPendingBookings(_req: AuthRequest, res: Response): Promise<void> {
+  async getPendingBookings(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const bookings = await bookingService.getPendingBookings();
+      const locationId = req.user!.locationId;
+      const bookings = await bookingService.getPendingBookings(locationId);
       res.json(bookings);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch pending bookings' });
@@ -74,7 +91,8 @@ export const adminController = {
   async getUtilisation(req: AuthRequest, res: Response): Promise<void> {
     try {
       const days = parseInt(req.query.days as string) || 30;
-      const data = await analyticsService.getUtilisation(days);
+      const locationId = req.user!.locationId;
+      const data = await analyticsService.getUtilisation(days, locationId);
       res.json(data);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch utilisation' });
@@ -84,7 +102,8 @@ export const adminController = {
   async getCompanyHours(req: AuthRequest, res: Response): Promise<void> {
     try {
       const days = parseInt(req.query.days as string) || 30;
-      const data = await analyticsService.getCompanyHours(days);
+      const locationId = req.user!.locationId;
+      const data = await analyticsService.getCompanyHours(days, locationId);
       res.json(data);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch company hours' });
@@ -94,7 +113,8 @@ export const adminController = {
   async getPeakTimes(req: AuthRequest, res: Response): Promise<void> {
     try {
       const days = parseInt(req.query.days as string) || 30;
-      const data = await analyticsService.getPeakTimes(days);
+      const locationId = req.user!.locationId;
+      const data = await analyticsService.getPeakTimes(days, locationId);
       res.json(data);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch peak times' });
@@ -104,74 +124,57 @@ export const adminController = {
   async getCancellations(req: AuthRequest, res: Response): Promise<void> {
     try {
       const days = parseInt(req.query.days as string) || 30;
-      const data = await analyticsService.getCancellations(days);
+      const locationId = req.user!.locationId;
+      const data = await analyticsService.getCancellations(days, locationId);
       res.json(data);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch cancellation stats' });
     }
   },
 
-  // Company token management
-  async getCompanies(_req: AuthRequest, res: Response): Promise<void> {
+  // Location token management (for OFFICE_ADMIN — own location only)
+  async getLocationTokens(req: AuthRequest, res: Response): Promise<void> {
     try {
+      const locationId = req.user!.locationId;
+      if (!locationId) {
+        res.status(400).json({ error: 'No location associated with your account' });
+        return;
+      }
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
 
-      const companies = await prisma.company.findMany({
-        include: {
-          _count: { select: { users: true } },
-          dailyTokens: { where: { date: dateStr } },
-        },
-        orderBy: { name: 'asc' },
+      const row = await prisma.locationDailyTokens.findUnique({
+        where: { locationId_date: { locationId, date: dateStr } },
       });
+      const tokensTotal = row?.tokensTotal ?? 3;
+      const tokensUsed = row?.tokensUsed ?? 0;
 
-      const result = companies.map((c) => {
-        const tokenRow = c.dailyTokens[0];
-        const tokensTotal = tokenRow?.tokensTotal ?? 3;
-        const tokensUsed = tokenRow?.tokensUsed ?? 0;
-        return {
-          id: c.id,
-          name: c.name,
-          color: c.color,
-          tokensTotal,
-          tokensUsed,
-          tokensRemaining: tokensTotal - tokensUsed,
-          userCount: c._count.users,
-        };
+      res.json({
+        locationId,
+        tokensTotal,
+        tokensUsed,
+        tokensRemaining: tokensTotal - tokensUsed,
       });
-
-      res.json(result);
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch companies' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch tokens' });
     }
   },
 
-  async setCompanyTokens(req: AuthRequest, res: Response): Promise<void> {
+  // Rooms list for the admin's location
+  async getRooms(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
-      const { tokensTotal } = req.body;
-
-      if (typeof tokensTotal !== 'number' || tokensTotal < 0) {
-        res.status(400).json({ error: 'tokensTotal must be a non-negative number' });
+      const locationId = req.user!.locationId;
+      if (!locationId) {
+        res.status(400).json({ error: 'No location associated with your account' });
         return;
       }
-
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
-
-      const row = await prisma.companyDailyTokens.upsert({
-        where: { companyId_date: { companyId: id, date: dateStr } },
-        create: { companyId: id, date: dateStr, tokensTotal, tokensUsed: 0 },
-        update: { tokensTotal },
+      const rooms = await prisma.room.findMany({
+        where: { locationId },
+        orderBy: { name: 'asc' },
       });
-
-      res.json({
-        tokensTotal: row.tokensTotal,
-        tokensUsed: row.tokensUsed,
-        tokensRemaining: row.tokensTotal - row.tokensUsed,
-      });
+      res.json(rooms);
     } catch (err: unknown) {
-      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to update token allowance' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch rooms' });
     }
   },
 };

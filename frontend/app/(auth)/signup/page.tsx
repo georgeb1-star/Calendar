@@ -11,13 +11,13 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [companyId, setCompanyId] = useState('');
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [locationId, setLocationId] = useState('');
+  const [locations, setLocations] = useState<{ id: string; name: string; address?: string }[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.auth.getCompanies().then(setCompanies).catch(() => {});
+    api.auth.getLocations().then(setLocations).catch(() => {});
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -25,7 +25,7 @@ export default function SignupPage() {
     setError('');
     setLoading(true);
     try {
-      const result = await api.auth.register({ name, email, password, companyId });
+      const result = await api.auth.register({ name, email, password, locationId });
       setAuth(result.token, result.user);
       router.push('/calendar');
     } catch (err: unknown) {
@@ -171,20 +171,22 @@ export default function SignupPage() {
                 className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
                 style={{ color: 'var(--th-muted)' }}
               >
-                Company
+                Office location
               </label>
               <select
-                value={companyId}
-                onChange={e => setCompanyId(e.target.value)}
+                value={locationId}
+                onChange={e => setLocationId(e.target.value)}
                 required
                 className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors appearance-none"
-                style={{ borderColor: 'var(--th-border)', color: companyId ? 'var(--th-text)' : '#C5BDB9' }}
+                style={{ borderColor: 'var(--th-border)', color: locationId ? 'var(--th-text)' : '#C5BDB9' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               >
-                <option value="" disabled>Select your company</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                <option value="" disabled>Select your office</option>
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}{loc.address ? ` — ${loc.address}` : ''}
+                  </option>
                 ))}
               </select>
             </div>
