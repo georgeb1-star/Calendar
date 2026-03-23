@@ -6,7 +6,6 @@ import { api } from '@/lib/api';
 interface CompanyRow {
   id: string;
   name: string;
-  color: string;
   tokensTotal: number;
   tokensUsed: number;
   tokensRemaining: number;
@@ -23,7 +22,7 @@ export default function CompanyTokenTable() {
 
   async function load() {
     try {
-      const data = await api.admin.companies.list();
+      const data = await api.globalAdmin.locations();
       setCompanies(data);
     } catch {
       setError('Failed to load companies');
@@ -53,7 +52,7 @@ export default function CompanyTokenTable() {
     }
     setSaving(true);
     try {
-      await api.admin.companies.setAllowance(id, val);
+      await api.globalAdmin.setLocationTokens(id, val);
       await load();
       setEditingId(null);
     } catch (err: unknown) {
@@ -98,13 +97,7 @@ export default function CompanyTokenTable() {
             {companies.map((company) => (
               <tr key={company.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: company.color }}
-                    />
-                    <span className="font-medium text-slate-800">{company.name}</span>
-                  </div>
+                  <span className="font-medium text-slate-800">{company.name}</span>
                 </td>
                 <td className="px-4 py-3 text-right">
                   {editingId === company.id ? (
