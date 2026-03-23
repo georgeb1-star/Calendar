@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 
@@ -94,6 +94,7 @@ export default function BookingModal({
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [selectedInvitees, setSelectedInvitees] = useState<string[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteeConflicts, setInviteeConflicts] = useState<Record<string, { bookingTitle: string; roomName: string; startTime: string }>>({});
 
   // Recurring state
   const [isRecurring, setIsRecurring] = useState(false);
@@ -108,6 +109,7 @@ export default function BookingModal({
     setTokenBalance(null);
     setSelectedInvitees([]);
     setInviteOpen(false);
+    setInviteeConflicts({});
     setIsRecurring(false);
     setRecurringEndDate('');
     setRecurringResult(null);
@@ -127,6 +129,26 @@ export default function BookingModal({
     api.bookings.tokenBalance().then(setTokenBalance).catch(() => {});
     api.bookings.colleagues().then(setColleagues).catch(() => {});
   }, [isOpen, prefillRoomId, prefillStart, prefillEnd, rooms]);
+
+  // Debounced invitee conflict check
+  useEffect(() => {
+    if (selectedInvitees.length === 0 || !date || endTime <= startTime) {
+      setInviteeConflicts({});
+      return;
+    }
+    const startISO = new Date(`${date}T${startTime}:00`).toISOString();
+    const endISO = new Date(`${date}T${endTime}:00`).toISOString();
+    const timer = setTimeout(() => {
+      api.bookings.checkInviteeConflicts({ inviteeIds: selectedInvitees, startTime: startISO, endTime: endISO })
+        .then(conflicts => {
+          const map: Record<string, { bookingTitle: string; roomName: string; startTime: string }> = {};
+          for (const c of conflicts) map[c.userId] = { bookingTitle: c.bookingTitle, roomName: c.roomName, startTime: c.startTime };
+          setInviteeConflicts(map);
+        })
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [selectedInvitees, date, startTime, endTime]);
 
   if (!isOpen) return null;
 
@@ -163,6 +185,13 @@ export default function BookingModal({
     if (!date) { setError('Please select a date.'); return; }
     if (endTime <= startTime) { setError('End time must be after start time.'); return; }
     if (isRecurring && !recurringEndDate) { setError('Please select a repeat end date.'); return; }
+    if (selectedRoom) {
+      const attendeeCount = 1 + selectedInvitees.length;
+      if (attendeeCount > selectedRoom.capacity) {
+        setError(`This room fits ${selectedRoom.capacity} people. You have ${attendeeCount} attendees (including yourself).`);
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -479,40 +508,72 @@ export default function BookingModal({
               </button>
               {inviteOpen && (
                 <div className="border max-h-36 overflow-y-auto" style={{ borderColor: 'var(--th-border)' }}>
-                  {colleagues.map(c => (
-                    <label
-                      key={c.id}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 text-sm"
-                      style={{ color: 'var(--th-text)' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedInvitees.includes(c.id)}
-                        onChange={() => toggleInvitee(c.id)}
-                        className="w-3.5 h-3.5"
-                        style={{ accentColor: 'var(--th-pink)' }}
-                      />
-                      <span className="font-medium text-xs">{c.name}</span>
-                      <span className="text-[10px]" style={{ color: 'var(--th-muted)' }}>{c.email}</span>
-                    </label>
-                  ))}
+                  {colleagues.map(c => {
+                    const conflict = inviteeConflicts[c.id];
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 text-sm"
+                        style={{ color: 'var(--th-text)' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedInvitees.includes(c.id)}
+                          onChange={() => toggleInvitee(c.id)}
+                          className="w-3.5 h-3.5"
+                          style={{ accentColor: 'var(--th-pink)' }}
+                        />
+                        <span className="font-medium text-xs">{c.name}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--th-muted)' }}>{c.email}</span>
+                        {conflict && (
+                          <span
+                            className="ml-auto text-[10px] flex items-center gap-1"
+                            style={{ color: '#A06020' }}
+                            title={`Already booked: ${conflict.roomName} at ${new Date(conflict.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                          >
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                            </svg>
+                            Conflict
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               {selectedInvitees.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {selectedInvitees.map(id => {
                     const c = colleagues.find(x => x.id === id);
+                    const conflict = inviteeConflicts[id];
                     return c ? (
                       <span
                         key={id}
                         className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] border"
-                        style={{ borderColor: 'var(--th-pink-mid)', color: 'var(--th-pink)', backgroundColor: 'var(--th-pink-light)' }}
+                        style={{
+                          borderColor: conflict ? '#F0C080' : 'var(--th-pink-mid)',
+                          color: conflict ? '#A06020' : 'var(--th-pink)',
+                          backgroundColor: conflict ? '#FFF8F0' : 'var(--th-pink-light)',
+                        }}
                       >
+                        {conflict && (
+                          <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                          </svg>
+                        )}
                         {c.name}
                         <button type="button" onClick={() => toggleInvitee(id)} className="ml-1 opacity-60 hover:opacity-100">×</button>
                       </span>
                     ) : null;
                   })}
+                </div>
+              )}
+              {Object.keys(inviteeConflicts).filter(id => selectedInvitees.includes(id)).length > 0 && (
+                <div className="mt-2 px-3 py-2 text-xs border" style={{ backgroundColor: '#FFF8F0', borderColor: '#F0C080', color: '#A06020' }}>
+                  {Object.keys(inviteeConflicts).filter(id => selectedInvitees.includes(id)).length === 1
+                    ? '1 invitee has a conflicting booking — you can still proceed'
+                    : `${Object.keys(inviteeConflicts).filter(id => selectedInvitees.includes(id)).length} invitees have conflicting bookings — you can still proceed`}
                 </div>
               )}
             </div>

@@ -33,6 +33,59 @@ export const bookingService = {
     return bookingRepository.findByUser(userId);
   },
 
+  async checkInviteeConflicts(inviteeIds: string[], startTime: Date, endTime: Date, excludeBookingId?: string) {
+    if (inviteeIds.length === 0) return [];
+
+    const cancelledStatuses: ('CANCELLED' | 'REJECTED' | 'NO_SHOW')[] = ['CANCELLED', 'REJECTED', 'NO_SHOW'];
+
+    const organizerBookings = await prisma.booking.findMany({
+      where: {
+        userId: { in: inviteeIds },
+        status: { notIn: cancelledStatuses },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+        ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        room: { select: { name: true } },
+      },
+    });
+
+    const inviteBookings = await prisma.bookingInvite.findMany({
+      where: {
+        userId: { in: inviteeIds },
+        booking: {
+          status: { notIn: cancelledStatuses },
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+          ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
+        },
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        booking: {
+          include: { room: { select: { name: true } } },
+        },
+      },
+    });
+
+    const conflictMap = new Map<string, { userId: string; name: string; email: string; bookingTitle: string; roomName: string; startTime: Date; endTime: Date }>();
+
+    for (const b of organizerBookings) {
+      if (!conflictMap.has(b.userId)) {
+        conflictMap.set(b.userId, { userId: b.userId, name: b.user.name, email: b.user.email, bookingTitle: b.title, roomName: b.room.name, startTime: b.startTime, endTime: b.endTime });
+      }
+    }
+    for (const inv of inviteBookings) {
+      if (!conflictMap.has(inv.userId)) {
+        conflictMap.set(inv.userId, { userId: inv.userId, name: inv.user.name, email: inv.user.email, bookingTitle: inv.booking.title, roomName: inv.booking.room.name, startTime: inv.booking.startTime, endTime: inv.booking.endTime });
+      }
+    }
+
+    return Array.from(conflictMap.values());
+  },
+
   async createBooking(data: {
     title: string;
     roomId: string;
@@ -79,6 +132,15 @@ export const bookingService = {
       });
       if (conflict) {
         throw new Error('This room is already booked during that time. Please choose a different time or room.');
+      }
+
+      // Check room capacity
+      const room = await tx.room.findUnique({ where: { id: data.roomId }, select: { capacity: true, name: true } });
+      if (room) {
+        const attendeeCount = 1 + (data.inviteeIds?.length ?? 0);
+        if (attendeeCount > room.capacity) {
+          throw new Error(`This room fits ${room.capacity} people. You have ${attendeeCount} attendees (including yourself).`);
+        }
       }
 
       // Deduct tokens
@@ -167,6 +229,7 @@ export const bookingService = {
     startTime?: string;
     endTime?: string;
     notes?: string;
+    inviteeIds?: string[];
     requestUserId: string;
     requestUserRole: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN';
     requestCompanyId: string;
@@ -221,6 +284,17 @@ export const bookingService = {
         });
         if (conflict) {
           throw new Error('This room is already booked during that time. Please choose a different time or room.');
+        }
+      }
+
+      // Check room capacity
+      const room = await tx.room.findUnique({ where: { id: existing.roomId }, select: { capacity: true, name: true } });
+      if (room) {
+        const existingInviteeCount = await tx.bookingInvite.count({ where: { bookingId } });
+        const newInviteeCount = data.inviteeIds?.length ?? 0;
+        const attendeeCount = 1 + existingInviteeCount + newInviteeCount;
+        if (attendeeCount > room.capacity) {
+          throw new Error(`This room fits ${room.capacity} people. You have ${attendeeCount} attendees (including yourself).`);
         }
       }
 

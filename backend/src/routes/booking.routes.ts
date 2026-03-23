@@ -13,6 +13,7 @@ router.get('/token-balance', bookingController.getTokenBalance as any);
 router.get('/mine', bookingController.getMine as any);
 router.get('/invited', bookingController.getInvited as any);
 router.get('/colleagues', bookingController.getColleagues as any);
+router.get('/invitee-conflicts', bookingController.checkInviteeConflicts as any);
 router.get('/recurring', bookingController.listRecurring as any);
 router.post('/recurring', bookingController.createRecurring as any);
 router.delete('/recurring/:id', bookingController.cancelRecurring as any);

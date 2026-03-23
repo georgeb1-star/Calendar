@@ -81,6 +81,11 @@ export const api = {
     listRecurring: () => request<any[]>('/api/bookings/recurring'),
     cancelSeries: (id: string) =>
       request<any>(`/api/bookings/recurring/${id}`, { method: 'DELETE' }),
+    checkInviteeConflicts: (params: { inviteeIds: string[]; startTime: string; endTime: string; excludeBookingId?: string }) => {
+      const qs = new URLSearchParams({ inviteeIds: params.inviteeIds.join(','), startTime: params.startTime, endTime: params.endTime });
+      if (params.excludeBookingId) qs.set('excludeBookingId', params.excludeBookingId);
+      return request<{ userId: string; name: string; email: string; bookingTitle: string; roomName: string; startTime: string; endTime: string }[]>(`/api/bookings/invitee-conflicts?${qs}`);
+    },
   },
 
   // Admin

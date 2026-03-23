@@ -145,6 +145,26 @@ export const bookingController = {
     }
   },
 
+  async checkInviteeConflicts(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { inviteeIds: raw, startTime, endTime, excludeBookingId } = req.query as Record<string, string>;
+      if (!raw || !startTime || !endTime) {
+        res.status(400).json({ error: 'inviteeIds, startTime, and endTime are required' });
+        return;
+      }
+      const inviteeIds = raw.split(',').filter(Boolean);
+      const conflicts = await bookingService.checkInviteeConflicts(
+        inviteeIds,
+        new Date(startTime),
+        new Date(endTime),
+        excludeBookingId || undefined,
+      );
+      res.json(conflicts);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to check invitee conflicts' });
+    }
+  },
+
   async cancelFromEmail(req: Request, res: Response): Promise<void> {
     try {
       const { token } = req.body;
