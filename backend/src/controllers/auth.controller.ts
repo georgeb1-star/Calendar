@@ -63,4 +63,28 @@ export const authController = {
       res.status(500).json({ error: 'Failed to fetch companies' });
     }
   },
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+      if (!email) { res.status(400).json({ error: 'Email is required' }); return; }
+      await authService.requestPasswordReset(email);
+      // Always 200 — don't reveal whether the email exists
+      res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+    } catch {
+      res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+    }
+  },
+
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) { res.status(400).json({ error: 'Token and password are required' }); return; }
+      if (password.length < 8) { res.status(400).json({ error: 'Password must be at least 8 characters' }); return; }
+      await authService.resetPassword(token, password);
+      res.json({ message: 'Password updated successfully. You can now log in.' });
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to reset password' });
+    }
+  },
 };

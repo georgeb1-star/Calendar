@@ -10,5 +10,7 @@ router.get('/me', authMiddleware, authController.me as any);
 router.post('/register', authController.register);
 router.get('/locations', authController.getLocations);
 router.get('/companies', authController.getCompanies);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 
 export default router;

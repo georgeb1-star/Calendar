@@ -44,6 +44,16 @@ export const api = {
       request<{ id: string; name: string; address?: string }[]>('/api/auth/locations'),
     getCompanies: () =>
       request<{ id: string; name: string }[]>('/api/auth/companies'),
+    forgotPassword: (email: string) =>
+      request<{ message: string }>('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    resetPassword: (token: string, password: string) =>
+      request<{ message: string }>('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      }),
   },
 
   // Rooms

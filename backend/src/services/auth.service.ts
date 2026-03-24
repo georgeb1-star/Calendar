@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { userRepository } from '../repositories/user.repository';
 import { notificationService } from './notification.service';
@@ -122,6 +123,43 @@ export const authService = {
       .catch(console.error);
 
     return { token, user: formatUser(user) };
+  },
+
+  async requestPasswordReset(email: string) {
+    // Always return success to avoid email enumeration
+    const user = await userRepository.findByEmail(email);
+    if (!user) return;
+
+    // Invalidate any existing tokens for this user
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+    await notificationService.sendPasswordResetEmail({ userEmail: user.email, userName: user.name, resetUrl });
+  },
+
+  async resetPassword(rawToken: string, newPassword: string) {
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const record = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      throw new Error('Reset link is invalid or has expired. Please request a new one.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: record.userId }, data: { passwordHash } });
+    await prisma.passwordResetToken.delete({ where: { id: record.id } });
   },
 
   async getLocations() {

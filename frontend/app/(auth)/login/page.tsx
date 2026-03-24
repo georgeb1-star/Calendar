@@ -150,6 +150,15 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-[10px] tracking-wide transition-colors"
+                  style={{ color: 'var(--th-muted)' }}
+                  onMouseOver={e => ((e.target as HTMLElement).style.color = 'var(--th-text)')}
+                  onMouseOut={e => ((e.target as HTMLElement).style.color = 'var(--th-muted)')}
+                >
+                  Forgot password?
+                </Link>
               </div>
               <input
                 type="password"

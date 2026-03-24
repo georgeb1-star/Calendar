@@ -316,6 +316,22 @@ export const notificationService = {
     );
   },
 
+  async sendPasswordResetEmail(data: { userEmail: string; userName: string; resetUrl: string }) {
+    const body = `
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">Hi ${data.userName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#3D3530;line-height:1.6;">We received a request to reset your password. Click the button below to choose a new one. This link expires in <strong>1 hour</strong>.</p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#E8917A;padding:12px 28px;">
+            <a href="${data.resetUrl}" style="font-family:Georgia,serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:#fff;text-decoration:none;">Reset Password</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:12px;color:#9E9087;line-height:1.6;">If you didn't request a password reset, you can safely ignore this email. Your password will not change.</p>
+    `;
+    await send(data.userEmail, 'Reset your Townhouse password', layout('Password Reset', body));
+  },
+
   async sendTokenDeductionFailed(
     user: { email: string; name: string },
     booking: { title: string; startTime: Date }
