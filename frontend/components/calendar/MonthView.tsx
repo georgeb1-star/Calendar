@@ -13,6 +13,7 @@ interface MonthViewProps {
   date: Date;
   bookings: Booking[];
   onSelectDay: (date: Date) => void;
+  blackoutDates?: Set<string>;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -23,7 +24,7 @@ function isSameDay(a: Date, b: Date): boolean {
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function MonthView({ date, bookings, onSelectDay }: MonthViewProps) {
+export default function MonthView({ date, bookings, onSelectDay, blackoutDates }: MonthViewProps) {
   const year = date.getFullYear();
   const month = date.getMonth();
   const today = new Date();
@@ -65,23 +66,39 @@ export default function MonthView({ date, bookings, onSelectDay }: MonthViewProp
           const isCurrentMonth = day.getMonth() === month;
           const isToday = isSameDay(day, today);
           const isPast = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const dayStr = `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`;
+          const isBlackout = blackoutDates?.has(dayStr) ?? false;
 
           return (
             <button
               key={day.toISOString()}
               onClick={() => onSelectDay(day)}
               className={`
-                bg-white p-2 text-left hover:bg-slate-50 transition-colors min-h-[90px] flex flex-col
+                p-2 text-left hover:bg-slate-50 transition-colors min-h-[90px] flex flex-col
                 ${!isCurrentMonth ? 'opacity-35' : ''}
-                ${isPast && isCurrentMonth ? 'bg-slate-50/60' : ''}
+                ${isPast && isCurrentMonth && !isBlackout ? 'bg-slate-50/60' : ''}
               `}
+              style={{
+                backgroundColor: isBlackout && isCurrentMonth
+                  ? undefined
+                  : undefined,
+                backgroundImage: isBlackout && isCurrentMonth
+                  ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)'
+                  : undefined,
+              }}
             >
               <span className={`
                 inline-flex items-center justify-center w-7 h-7 text-sm font-medium rounded-full mb-1 flex-shrink-0
-                ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-100'}
+                ${isToday ? 'bg-blue-600 text-white' : isBlackout ? 'text-amber-600' : 'text-slate-700 hover:bg-slate-100'}
               `}>
                 {day.getDate()}
               </span>
+
+              {isBlackout && isCurrentMonth && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded mb-1 self-start">
+                  Closed
+                </span>
+              )}
 
               <div className="flex flex-col gap-0.5 overflow-hidden w-full">
                 {dayBookings.slice(0, 3).map(b => (

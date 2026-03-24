@@ -33,7 +33,19 @@ model Location {
   bookings          Booking[]
   dailyTokens       LocationDailyTokens[]
   recurringBookings RecurringBooking[]
+  blackoutDates     BlackoutDate[]
   createdAt         DateTime             @default(now())
+}
+
+model BlackoutDate {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  date       String   // "YYYY-MM-DD"
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([locationId, date])
 }
 
 model LocationDailyTokens {

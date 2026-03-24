@@ -64,15 +64,22 @@ export default function CalendarView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [prefill, setPrefill] = useState<{ roomId?: string; start?: string; end?: string }>({});
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
+  const [blackoutDates, setBlackoutDates] = useState<Set<string>>(new Set());
+  const [blackoutReasons, setBlackoutReasons] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
-      const [roomList, bookingList] = await Promise.all([
+      const [roomList, bookingList, blackouts] = await Promise.all([
         api.rooms.list(),
         api.bookings.list(),
+        api.bookings.blackoutDates().catch(() => [] as { date: string; reason: string | null }[]),
       ]);
       setRooms(roomList);
       setBookings(bookingList);
+      setBlackoutDates(new Set(blackouts.map((b: { date: string }) => b.date)));
+      const reasons: Record<string, string> = {};
+      blackouts.forEach((b: { date: string; reason: string | null }) => { if (b.reason) reasons[b.date] = b.reason; });
+      setBlackoutReasons(reasons);
     } catch (err) {
       console.error('Failed to load calendar data:', err);
     }
@@ -190,7 +197,7 @@ export default function CalendarView() {
       {/* View content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {view === 'day' && (
-          <DayView date={date} rooms={rooms} bookings={bookings} selectedRoom={selectedRoom} onBookSlot={openModal} onClickBooking={setDetailBooking} />
+          <DayView date={date} rooms={rooms} bookings={bookings} selectedRoom={selectedRoom} onBookSlot={openModal} onClickBooking={setDetailBooking} blackoutDates={blackoutDates} blackoutReasons={blackoutReasons} />
         )}
         {view === 'week' && (
           <WeekView
@@ -198,10 +205,12 @@ export default function CalendarView() {
             onBookSlot={openModal}
             onSelectDay={d => { setDate(d); setView('day'); }}
             onClickBooking={setDetailBooking}
+            blackoutDates={blackoutDates}
+            blackoutReasons={blackoutReasons}
           />
         )}
         {view === 'month' && (
-          <MonthView date={date} bookings={bookings} onSelectDay={d => { setDate(d); setView('day'); }} />
+          <MonthView date={date} bookings={bookings} onSelectDay={d => { setDate(d); setView('day'); }} blackoutDates={blackoutDates} />
         )}
       </div>
 

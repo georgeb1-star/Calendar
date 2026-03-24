@@ -8,8 +8,9 @@ import ApprovalQueue from '@/components/admin/ApprovalQueue';
 import UserTable from '@/components/admin/UserTable';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import RoomTable from '@/components/admin/RoomTable';
+import BlackoutDates from '@/components/admin/BlackoutDates';
 
-type Tab = 'approvals' | 'users' | 'analytics' | 'rooms';
+type Tab = 'approvals' | 'users' | 'analytics' | 'rooms' | 'closures';
 
 const OFFICE_ADMIN_ROLES = ['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'];
 
@@ -31,6 +32,7 @@ export default function AdminPage() {
     { id: 'users', label: 'User Management' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'rooms', label: 'Rooms' },
+    { id: 'closures', label: 'Office Closures' },
   ];
 
   const locationLabel = user.location?.name ?? 'Office';
@@ -63,6 +65,7 @@ export default function AdminPage() {
       {tab === 'users' && <UserTable />}
       {tab === 'analytics' && <AnalyticsDashboard />}
       {tab === 'rooms' && <RoomTable />}
+      {tab === 'closures' && <BlackoutDates />}
     </div>
   );
 }

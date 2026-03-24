@@ -29,6 +29,8 @@ interface WeekViewProps {
   onBookSlot: (data: { roomId?: string; start?: string; end?: string }) => void;
   onSelectDay: (date: Date) => void;
   onClickBooking: (booking: Booking) => void;
+  blackoutDates?: Set<string>;
+  blackoutReasons?: Record<string, string>;
 }
 
 function startOfWeek(date: Date): Date {
@@ -100,7 +102,7 @@ function shortRoomName(name: string): string {
   return name.replace(/meeting room/i, 'Rm').replace(/room/i, 'Rm');
 }
 
-export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSlot, onSelectDay, onClickBooking }: WeekViewProps) {
+export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSlot, onSelectDay, onClickBooking, blackoutDates, blackoutReasons }: WeekViewProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const today = new Date();
@@ -155,6 +157,9 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
           {/* Day columns */}
           {weekDays.map(day => {
             const isToday = isSameDay(day, today);
+            const dayStr = `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`;
+            const isDayBlackout = blackoutDates?.has(dayStr) ?? false;
+            const dayBlackoutReason = blackoutReasons?.[dayStr];
             return (
               <div
                 key={day.toISOString()}
@@ -162,7 +167,7 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                 style={{
                   width: dayColWidth,
                   borderLeft: '1px solid var(--th-divider)',
-                  backgroundColor: isToday ? '#FAF0EE30' : 'transparent',
+                  backgroundColor: isDayBlackout ? '#FFFBEB' : isToday ? '#FAF0EE30' : 'transparent',
                 }}
               >
                 {/* Day label — clickable → day view */}
@@ -176,13 +181,13 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                   <div className="flex items-baseline gap-2">
                     <span
                       className="text-[11px] font-semibold tracking-[0.12em] uppercase"
-                      style={{ color: isToday ? 'var(--th-pink)' : 'var(--th-muted)' }}
+                      style={{ color: isDayBlackout ? '#D97706' : isToday ? 'var(--th-pink)' : 'var(--th-muted)' }}
                     >
                       {day.toLocaleDateString('en-GB', { weekday: 'short' })}
                     </span>
                     <span
                       className="text-base font-bold leading-none"
-                      style={{ color: isToday ? 'var(--th-pink)' : 'var(--th-text)' }}
+                      style={{ color: isDayBlackout ? '#D97706' : isToday ? 'var(--th-pink)' : 'var(--th-text)' }}
                     >
                       {day.getDate()}
                     </span>
@@ -192,6 +197,11 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                     >
                       {day.toLocaleDateString('en-GB', { month: 'short' })}
                     </span>
+                    {isDayBlackout && (
+                      <span className="text-[9px] font-semibold tracking-wide uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">
+                        {dayBlackoutReason ?? 'Closed'}
+                      </span>
+                    )}
                     {isToday && (
                       <span
                         className="text-[9px] font-semibold tracking-[0.15em] uppercase px-1.5 py-0.5"
@@ -278,6 +288,8 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
           {weekDays.map(day => {
             const isToday = isSameDay(day, today);
             const timeTop = isToday ? getCurrentTimeTop() : null;
+            const dayStr2 = `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`;
+            const isDayBlackout = blackoutDates?.has(dayStr2) ?? false;
 
             return (
               <div
@@ -299,13 +311,14 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                   return (
                     <div
                       key={room.id}
-                      className="relative cursor-pointer flex-shrink-0"
+                      className={`relative flex-shrink-0 ${isDayBlackout ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       style={{
                         width: ROOM_COL_WIDTH,
                         height: GRID_HEIGHT,
                         borderLeft: roomIdx > 0 ? '1px dashed var(--th-divider)' : 'none',
+                        backgroundColor: isDayBlackout ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)' : undefined,
                       }}
-                      onClick={e => handleGridClick(room.id, day, e)}
+                      onClick={e => { if (!isDayBlackout) handleGridClick(room.id, day, e); }}
                     >
                       {/* Hour lines */}
                       {hours.map((h, i) => (

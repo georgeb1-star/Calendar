@@ -27,6 +27,8 @@ interface DayViewProps {
   selectedRoom: string;
   onBookSlot: (data: { roomId?: string; start?: string; end?: string }) => void;
   onClickBooking: (booking: Booking) => void;
+  blackoutDates?: Set<string>;
+  blackoutReasons?: Record<string, string>;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -88,11 +90,15 @@ function getCurrentTimeTop(): number {
   return (mins / 60) * HOUR_HEIGHT;
 }
 
-export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlot, onClickBooking }: DayViewProps) {
+export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlot, onClickBooking, blackoutDates, blackoutReasons }: DayViewProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isToday = isSameDay(date, new Date());
   const visibleRooms = selectedRoom === 'all' ? rooms : rooms.filter(r => r.id === selectedRoom);
+
+  const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  const isBlackout = blackoutDates?.has(dateStr) ?? false;
+  const blackoutReason = blackoutReasons?.[dateStr];
 
   const dayBookings = bookings.filter(b => {
     if (['CANCELLED', 'REJECTED', 'NO_SHOW'].includes(b.status)) return false;
@@ -122,6 +128,18 @@ export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlo
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#fff' }}>
+
+      {/* Blackout banner */}
+      {isBlackout && (
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+          <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <p className="text-sm text-amber-700 font-medium">
+            Office closed{blackoutReason ? ` — ${blackoutReason}` : ''}. Bookings are not available on this day.
+          </p>
+        </div>
+      )}
 
       {/* Room column headers */}
       <div
@@ -182,13 +200,13 @@ export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlo
             return (
               <div
                 key={room.id}
-                className="flex-1 relative cursor-pointer"
+                className={`flex-1 relative ${isBlackout ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 style={{
                   height: GRID_HEIGHT,
                   borderLeft: '1px solid var(--th-divider)',
-                  backgroundColor: isToday ? '#FAF0EE08' : 'transparent',
+                  backgroundColor: isBlackout ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)' : isToday ? '#FAF0EE08' : 'transparent',
                 }}
-                onClick={e => handleGridClick(room.id, e)}
+                onClick={e => { if (!isBlackout) handleGridClick(room.id, e); }}
               >
                 {/* Hour lines */}
                 {hours.map((h, i) => (

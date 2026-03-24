@@ -30,4 +30,9 @@ router.get('/tokens', adminController.getLocationTokens as any);
 // Rooms for this location
 router.get('/rooms', adminController.getRooms as any);
 
+// Blackout dates
+router.get('/blackouts', adminController.listBlackouts as any);
+router.post('/blackouts', adminController.createBlackout as any);
+router.delete('/blackouts/:id', adminController.deleteBlackout as any);
+
 export default router;

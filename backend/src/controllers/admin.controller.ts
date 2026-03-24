@@ -177,4 +177,57 @@ export const adminController = {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch rooms' });
     }
   },
+
+  // Blackout dates
+  async listBlackouts(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      if (!locationId) { res.status(400).json({ error: 'No location associated with your account' }); return; }
+      const dates = await prisma.blackoutDate.findMany({
+        where: { locationId },
+        orderBy: { date: 'asc' },
+      });
+      res.json(dates);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch blackout dates' });
+    }
+  },
+
+  async createBlackout(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      if (!locationId) { res.status(400).json({ error: 'No location associated with your account' }); return; }
+      const { date, reason } = req.body;
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        res.status(400).json({ error: 'date is required in YYYY-MM-DD format' });
+        return;
+      }
+      const blackout = await prisma.blackoutDate.create({
+        data: { locationId, date, reason: reason || null },
+      });
+      res.status(201).json(blackout);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create blackout date';
+      if (msg.includes('P2002') || msg.includes('Unique constraint')) {
+        res.status(409).json({ error: 'A blackout date already exists for that day' });
+        return;
+      }
+      res.status(400).json({ error: msg });
+    }
+  },
+
+  async deleteBlackout(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      const existing = await prisma.blackoutDate.findUnique({ where: { id: req.params.id } });
+      if (!existing || (locationId && existing.locationId !== locationId)) {
+        res.status(404).json({ error: 'Blackout date not found' });
+        return;
+      }
+      await prisma.blackoutDate.delete({ where: { id: req.params.id } });
+      res.json({ deleted: true });
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to delete blackout date' });
+    }
+  },
 };

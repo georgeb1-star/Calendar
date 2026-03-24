@@ -267,6 +267,22 @@ export const bookingController = {
     }
   },
 
+  async getBlackoutDates(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      if (!locationId) { res.json([]); return; }
+      const prisma = await import('../lib/prisma').then(m => m.default);
+      const dates = await prisma.blackoutDate.findMany({
+        where: { locationId },
+        orderBy: { date: 'asc' },
+        select: { id: true, date: true, reason: true },
+      });
+      res.json(dates);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch blackout dates' });
+    }
+  },
+
   async respondToInvite(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;

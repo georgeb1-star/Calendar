@@ -93,6 +93,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ status }),
       }),
+    blackoutDates: () =>
+      request<{ id: string; date: string; reason: string | null }[]>('/api/bookings/blackout-dates'),
   },
 
   // Admin (OFFICE_ADMIN — scoped to their location automatically by backend)
@@ -129,6 +131,13 @@ export const api = {
     },
     tokens: {
       get: () => request<any>('/api/admin/tokens'),
+    },
+    blackouts: {
+      list: () => request<{ id: string; date: string; reason: string | null }[]>('/api/admin/blackouts'),
+      create: (date: string, reason?: string) =>
+        request<any>('/api/admin/blackouts', { method: 'POST', body: JSON.stringify({ date, reason }) }),
+      delete: (id: string) =>
+        request<any>(`/api/admin/blackouts/${id}`, { method: 'DELETE' }),
     },
   },
 

@@ -121,6 +121,18 @@ export const bookingService = {
       throw new Error('Booking must start and end on the same calendar day');
     }
 
+    // Check blackout date for the room's location
+    const bookingDateStr = `${startTime.getFullYear()}-${(startTime.getMonth() + 1).toString().padStart(2, '0')}-${startTime.getDate().toString().padStart(2, '0')}`;
+    const room = await prisma.room.findUnique({ where: { id: data.roomId }, select: { locationId: true } });
+    if (room) {
+      const blackout = await prisma.blackoutDate.findUnique({
+        where: { locationId_date: { locationId: room.locationId, date: bookingDateStr } },
+      });
+      if (blackout) {
+        throw new Error(`This office is closed on ${bookingDateStr}${blackout.reason ? ` (${blackout.reason})` : ''}. Please choose a different date.`);
+      }
+    }
+
     const tokenCost = calcTokenCost(startTime, endTime);
 
     const booking = await prisma.$transaction(async (tx) => {
