@@ -84,7 +84,16 @@ export const userRepository = {
     });
   },
 
-  delete(id: string) {
+  async delete(id: string) {
+    const bookings = await prisma.booking.findMany({ where: { userId: id }, select: { id: true } });
+    const bookingIds = bookings.map(b => b.id);
+    if (bookingIds.length) {
+      await prisma.bookingLog.deleteMany({ where: { bookingId: { in: bookingIds } } });
+      await prisma.bookingInvite.deleteMany({ where: { bookingId: { in: bookingIds } } });
+      await prisma.booking.deleteMany({ where: { userId: id } });
+    }
+    await prisma.bookingInvite.deleteMany({ where: { userId: id } });
+    await prisma.recurringBooking.deleteMany({ where: { userId: id } });
     return prisma.user.delete({ where: { id } });
   },
 };
