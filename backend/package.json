@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "nodemon src/app.ts",
     "build": "prisma generate && tsc",
-    "start": "node dist/app.js",
+    "start": "prisma migrate deploy && node dist/app.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",

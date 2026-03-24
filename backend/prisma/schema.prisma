@@ -117,7 +117,7 @@ model Booking {
   roomId         String
   room           Room              @relation(fields: [roomId], references: [id])
   userId         String
-  user           User              @relation(fields: [userId], references: [id])
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyId      String
   company        Company           @relation(fields: [companyId], references: [id])
   locationId     String
@@ -165,7 +165,7 @@ model RecurringBooking {
   endTime    String    // "HH:MM"
   endDate    DateTime
   createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id])
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   company    Company   @relation(fields: [companyId], references: [id])
   location   Location  @relation(fields: [locationId], references: [id])
   room       Room      @relation(fields: [roomId], references: [id])
@@ -198,7 +198,7 @@ model CompanyDailyTokens {
 model BookingLog {
   id        String   @id @default(cuid())
   bookingId String
-  booking   Booking  @relation(fields: [bookingId], references: [id])
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   action    String
   actorId   String
   metadata  Json?
