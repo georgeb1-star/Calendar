@@ -32,12 +32,12 @@ export const authController = {
 
   async register(req: Request, res: Response): Promise<void> {
     try {
-      const { name, email, password, locationId } = req.body;
-      if (!name || !email || !password || !locationId) {
-        res.status(400).json({ error: 'Name, email, password, and location are required' });
+      const { name, email, password, locationId, companyId } = req.body;
+      if (!name || !email || !password || !locationId || !companyId) {
+        res.status(400).json({ error: 'Name, email, password, location, and company are required' });
         return;
       }
-      const result = await authService.register({ name, email, password, locationId });
+      const result = await authService.register({ name, email, password, locationId, companyId });
       res.status(201).json(result);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
@@ -52,6 +52,15 @@ export const authController = {
       res.json(locations);
     } catch (err: unknown) {
       res.status(500).json({ error: 'Failed to fetch locations' });
+    }
+  },
+
+  async getCompanies(_req: Request, res: Response): Promise<void> {
+    try {
+      const companies = await authService.getCompanies();
+      res.json(companies);
+    } catch (err: unknown) {
+      res.status(500).json({ error: 'Failed to fetch companies' });
     }
   },
 };

@@ -75,7 +75,7 @@ export const authService = {
     });
   },
 
-  async register(data: { name: string; email: string; password: string; locationId: string }) {
+  async register(data: { name: string; email: string; password: string; locationId: string; companyId: string }) {
     const existing = await userRepository.findByEmail(data.email);
     if (existing) throw new Error('Email already in use');
 
@@ -85,12 +85,15 @@ export const authService = {
     });
     if (!location) throw new Error('Location not found');
 
+    const company = await prisma.company.findUnique({ where: { id: data.companyId } });
+    if (!company) throw new Error('Company not found');
+
     const passwordHash = await bcrypt.hash(data.password, 10);
     const user = await userRepository.create({
       email: data.email,
       passwordHash,
       name: data.name,
-      companyId: location.companyId,
+      companyId: data.companyId,
       locationId: data.locationId,
       role: 'EMPLOYEE',
       status: 'PENDING',
@@ -125,6 +128,14 @@ export const authService = {
     return prisma.location.findMany({
       where: { isActive: true },
       select: { id: true, name: true, address: true },
+      orderBy: { name: 'asc' },
+    });
+  },
+
+  async getCompanies() {
+    return prisma.company.findMany({
+      where: { name: { not: 'Nammu Workplace' } },
+      select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
   },
