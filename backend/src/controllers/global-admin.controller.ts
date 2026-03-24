@@ -115,4 +115,60 @@ export const globalAdminController = {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch pending bookings' });
     }
   },
+
+  // POST /api/global-admin/locations
+  async createLocation(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { name, address, color, companyId } = req.body;
+      if (!name || !companyId) {
+        res.status(400).json({ error: 'name and companyId are required' });
+        return;
+      }
+      const location = await locationService.createLocation({ name, address, color, companyId });
+      res.status(201).json(location);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create location';
+      if (message.includes('Unique constraint') || message.includes('P2002')) {
+        res.status(409).json({ error: 'A location with that name already exists' });
+        return;
+      }
+      res.status(400).json({ error: message });
+    }
+  },
+
+  // POST /api/global-admin/locations/:id/rooms
+  async createRoom(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { name, capacity, amenities } = req.body;
+      if (!name || !capacity) {
+        res.status(400).json({ error: 'name and capacity are required' });
+        return;
+      }
+      const room = await prisma.room.create({
+        data: {
+          name,
+          capacity: parseInt(capacity, 10),
+          amenities: Array.isArray(amenities) ? amenities : [],
+          locationId: req.params.id,
+        },
+      });
+      res.status(201).json(room);
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to create room' });
+    }
+  },
+
+  // GET /api/global-admin/workspace-company
+  async getWorkspaceCompany(_req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const company = await prisma.company.findFirst({ where: { name: 'Nammu Workplace' } });
+      if (!company) {
+        res.status(404).json({ error: 'Workspace company not found' });
+        return;
+      }
+      res.json(company);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch workspace company' });
+    }
+  },
 };

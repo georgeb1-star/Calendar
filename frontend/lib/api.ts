@@ -88,6 +88,11 @@ export const api = {
       if (params.excludeBookingId) qs.set('excludeBookingId', params.excludeBookingId);
       return request<{ userId: string; name: string; email: string; bookingTitle: string; roomName: string; startTime: string; endTime: string }[]>(`/api/bookings/invitee-conflicts?${qs}`);
     },
+    respondToInvite: (inviteId: string, status: 'ACCEPTED' | 'DECLINED') =>
+      request<any>(`/api/bookings/invites/${inviteId}/respond`, {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      }),
   },
 
   // Admin (OFFICE_ADMIN — scoped to their location automatically by backend)
@@ -164,6 +169,14 @@ export const api = {
       }),
     analytics: (days?: number) =>
       request<any>(`/api/global-admin/analytics${days ? `?days=${days}` : ''}`),
+    createLocation: (data: { name: string; address?: string; color?: string; companyId: string }) =>
+      request<any>('/api/global-admin/locations', { method: 'POST', body: JSON.stringify(data) }),
+    createRoom: (locationId: string, data: { name: string; capacity: number; amenities?: string[] }) =>
+      request<any>(`/api/global-admin/locations/${locationId}/rooms`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    workspaceCompany: () => request<{ id: string; name: string }>('/api/global-admin/workspace-company'),
   },
 
   // Billing

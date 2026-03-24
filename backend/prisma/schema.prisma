@@ -173,13 +173,20 @@ model RecurringBooking {
   bookings   Booking[]
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 model BookingInvite {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   bookingId String
   userId    String
-  createdAt DateTime @default(now())
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    InviteStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  booking   Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([bookingId, userId])
 }

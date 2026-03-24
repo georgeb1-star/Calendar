@@ -8,6 +8,13 @@ const bookingWithDetails = {
   company: { select: { id: true, name: true, color: true } },
 } as const;
 
+const bookingWithInvites = {
+  ...bookingWithDetails,
+  invites: {
+    select: { id: true, status: true, user: { select: { id: true, name: true, email: true } } },
+  },
+} as const;
+
 export const bookingRepository = {
   findAll() {
     return prisma.booking.findMany({
@@ -19,7 +26,7 @@ export const bookingRepository = {
   findByUser(userId: string) {
     return prisma.booking.findMany({
       where: { userId },
-      include: bookingWithDetails,
+      include: bookingWithInvites,
       orderBy: { startTime: 'desc' },
     });
   },

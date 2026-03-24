@@ -5,6 +5,12 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import StatusBadge from '@/components/ui/StatusBadge';
 
+interface InviteRecord {
+  id: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  user: { id: string; name: string; email: string };
+}
+
 interface Booking {
   id: string;
   title: string;
@@ -16,6 +22,10 @@ interface Booking {
   room: { id: string; name: string; capacity: number };
   notes?: string | null;
   recurringId?: string | null;
+  invites?: InviteRecord[];
+  // Fields added for invited bookings
+  inviteId?: string | null;
+  inviteStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED';
   _source?: 'mine' | 'invited';
 }
 
@@ -39,6 +49,7 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellingSeriesId, setCancellingSeriesId] = useState<string | null>(null);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -90,6 +101,18 @@ export default function MyBookingsPage() {
       load();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to check in');
+    }
+  }
+
+  async function handleRsvp(inviteId: string, status: 'ACCEPTED' | 'DECLINED') {
+    setRespondingId(inviteId);
+    try {
+      await api.bookings.respondToInvite(inviteId, status);
+      load();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to respond to invite');
+    } finally {
+      setRespondingId(null);
     }
   }
 
@@ -146,68 +169,118 @@ export default function MyBookingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {bookings.map((booking) => (
-                <tr key={booking.id + booking._source} className="hover:bg-slate-50/50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-slate-800 truncate max-w-48">{booking.title}</p>
-                      {booking._source === 'invited' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-500 tracking-wide uppercase">
-                          Invited
-                        </span>
+              {bookings.map((booking) => {
+                const invites = booking.invites ?? [];
+                const accepted = invites.filter(i => i.status === 'ACCEPTED').length;
+                const declined = invites.filter(i => i.status === 'DECLINED').length;
+                const pending = invites.filter(i => i.status === 'PENDING').length;
+                const hasInvites = invites.length > 0;
+
+                return (
+                  <tr key={booking.id + booking._source} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-slate-800 truncate max-w-48">{booking.title}</p>
+                        {booking._source === 'invited' && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border tracking-wide uppercase font-medium ${
+                            booking.inviteStatus === 'ACCEPTED'
+                              ? 'border-emerald-300 text-emerald-600 bg-emerald-50'
+                              : booking.inviteStatus === 'DECLINED'
+                              ? 'border-red-300 text-red-500 bg-red-50'
+                              : 'border-slate-300 text-slate-500'
+                          }`}>
+                            {booking.inviteStatus === 'ACCEPTED' ? 'Accepted' : booking.inviteStatus === 'DECLINED' ? 'Declined' : 'Invited'}
+                          </span>
+                        )}
+                        {booking.recurringId && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border text-purple-600 tracking-wide uppercase" style={{ borderColor: '#C4BCEF' }}>
+                            Recurring
+                          </span>
+                        )}
+                      </div>
+                      {booking.notes && (
+                        <p className="text-slate-400 text-xs truncate max-w-48">{booking.notes}</p>
                       )}
-                      {booking.recurringId && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded border text-purple-600 tracking-wide uppercase" style={{ borderColor: '#C4BCEF' }}>
-                          Recurring
-                        </span>
+                      {booking._source === 'mine' && hasInvites && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {accepted > 0 && <span className="text-emerald-600">{accepted} accepted</span>}
+                          {accepted > 0 && (declined > 0 || pending > 0) && <span> · </span>}
+                          {declined > 0 && <span className="text-red-500">{declined} declined</span>}
+                          {declined > 0 && pending > 0 && <span> · </span>}
+                          {pending > 0 && <span>{pending} pending</span>}
+                        </p>
                       )}
-                    </div>
-                    {booking.notes && (
-                      <p className="text-slate-400 text-xs truncate max-w-48">{booking.notes}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{booking.room?.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{fmt(booking.startTime)}</td>
-                  <td className="px-4 py-3 text-slate-600">{fmt(booking.endTime)}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={booking.status as any} />
-                    {booking.checkInTime && (
-                      <p className="text-xs text-emerald-600 mt-0.5">
-                        Checked in {fmt(booking.checkInTime)}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2 flex-wrap">
-                      {canCheckIn(booking) && (
-                        <button
-                          onClick={() => handleCheckIn(booking.id)}
-                          className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors"
-                        >
-                          Check in
-                        </button>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{booking.room?.name}</td>
+                    <td className="px-4 py-3 text-slate-600">{fmt(booking.startTime)}</td>
+                    <td className="px-4 py-3 text-slate-600">{fmt(booking.endTime)}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={booking.status as any} />
+                      {booking.checkInTime && (
+                        <p className="text-xs text-emerald-600 mt-0.5">
+                          Checked in {fmt(booking.checkInTime)}
+                        </p>
                       )}
-                      {canCancel(booking) && booking.recurringId && (
-                        <button
-                          onClick={() => handleCancelSeries(booking.recurringId!)}
-                          disabled={cancellingSeriesId === booking.recurringId}
-                          className="px-3 py-1 border border-purple-200 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 text-purple-600 text-xs rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          Cancel series
-                        </button>
-                      )}
-                      {canCancel(booking) && (
-                        <button
-                          onClick={() => handleCancel(booking.id)}
-                          className="px-3 py-1 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-600 text-xs rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                        {booking._source === 'invited' && booking.inviteId && booking.inviteStatus === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => handleRsvp(booking.inviteId!, 'ACCEPTED')}
+                              disabled={respondingId === booking.inviteId}
+                              className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleRsvp(booking.inviteId!, 'DECLINED')}
+                              disabled={respondingId === booking.inviteId}
+                              className="px-3 py-1 border border-red-200 hover:bg-red-50 hover:border-red-300 text-red-500 text-xs rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+                        {booking._source === 'invited' && booking.inviteId && booking.inviteStatus !== 'PENDING' && (
+                          <button
+                            onClick={() => handleRsvp(booking.inviteId!, booking.inviteStatus === 'ACCEPTED' ? 'DECLINED' : 'ACCEPTED')}
+                            disabled={respondingId === booking.inviteId}
+                            className="px-3 py-1 border border-slate-200 hover:bg-slate-50 text-slate-500 text-xs rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {booking.inviteStatus === 'ACCEPTED' ? 'Decline instead' : 'Accept instead'}
+                          </button>
+                        )}
+                        {canCheckIn(booking) && (
+                          <button
+                            onClick={() => handleCheckIn(booking.id)}
+                            className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Check in
+                          </button>
+                        )}
+                        {canCancel(booking) && booking.recurringId && (
+                          <button
+                            onClick={() => handleCancelSeries(booking.recurringId!)}
+                            disabled={cancellingSeriesId === booking.recurringId}
+                            className="px-3 py-1 border border-purple-200 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 text-purple-600 text-xs rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            Cancel series
+                          </button>
+                        )}
+                        {canCancel(booking) && (
+                          <button
+                            onClick={() => handleCancel(booking.id)}
+                            className="px-3 py-1 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-600 text-xs rounded-lg transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

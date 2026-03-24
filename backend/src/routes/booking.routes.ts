@@ -17,6 +17,7 @@ router.get('/invitee-conflicts', bookingController.checkInviteeConflicts as any)
 router.get('/recurring', bookingController.listRecurring as any);
 router.post('/recurring', bookingController.createRecurring as any);
 router.delete('/recurring/:id', bookingController.cancelRecurring as any);
+router.post('/invites/:id/respond', bookingController.respondToInvite as any);
 router.get('/', bookingController.getAll as any);
 router.post('/', bookingController.create as any);
 router.put('/:id', bookingController.update as any);

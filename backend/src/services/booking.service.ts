@@ -498,7 +498,7 @@ export const bookingService = {
   },
 
   async getInvitedBookings(userId: string) {
-    return prisma.booking.findMany({
+    const bookings = await prisma.booking.findMany({
       where: {
         invites: { some: { userId } },
         status: { notIn: ['CANCELLED', 'REJECTED', 'NO_SHOW'] },
@@ -508,8 +508,25 @@ export const bookingService = {
         user: { select: { id: true, name: true, email: true, companyId: true } },
         company: { select: { id: true, name: true, color: true } },
         location: { select: { id: true, name: true } },
+        invites: { where: { userId }, select: { id: true, status: true } },
       },
       orderBy: { startTime: 'asc' },
+    });
+    // Flatten invite id/status onto the booking object for convenience
+    return bookings.map(b => ({
+      ...b,
+      inviteId: b.invites[0]?.id ?? null,
+      inviteStatus: b.invites[0]?.status ?? 'PENDING',
+    }));
+  },
+
+  async respondToInvite(inviteId: string, userId: string, status: 'ACCEPTED' | 'DECLINED') {
+    const invite = await prisma.bookingInvite.findUnique({ where: { id: inviteId } });
+    if (!invite) throw new Error('Invite not found');
+    if (invite.userId !== userId) throw new Error('Not authorised');
+    return prisma.bookingInvite.update({
+      where: { id: inviteId },
+      data: { status },
     });
   },
 
