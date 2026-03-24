@@ -456,7 +456,7 @@ export default function BookingModal({
             >
               {insufficientTokens ? (
                 <span className="font-semibold">
-                  Not enough tokens — {tokenCost} required, {tokenBalance.tokensRemaining.toFixed(2)} remaining today
+                  Not enough tokens — this booking will be sent to the office admin for approval
                 </span>
               ) : (
                 <span>
@@ -630,7 +630,7 @@ export default function BookingModal({
             </button>
             <button
               type="submit"
-              disabled={loading || !title || !roomId || insufficientTokens}
+              disabled={loading || !title || !roomId}
               className="flex-1 py-3 text-xs font-semibold tracking-[0.2em] uppercase transition-opacity disabled:opacity-50"
               style={{ backgroundColor: 'var(--th-pink)', color: '#ffffff' }}
             >

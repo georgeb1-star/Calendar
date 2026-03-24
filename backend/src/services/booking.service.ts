@@ -154,7 +154,7 @@ export const bookingService = {
         throw new Error(`This room fits ${room.capacity} people. You have ${attendeeCount} attendees (including yourself).`);
       }
 
-      const { status, durationHours, formattedTitle } = bookingRulesService.validate({
+      const { status: rulesStatus, durationHours, formattedTitle } = bookingRulesService.validate({
         startTime,
         endTime,
         role: data.role,
@@ -162,8 +162,15 @@ export const bookingService = {
         title: data.title,
       });
 
-      // Deduct tokens from the location's pool
-      await tokenService.deductTokens(room.locationId, tokenCost, tx);
+      // Check token balance — if insufficient, route to admin approval instead of blocking
+      const todayRow = await tokenService.getTodayRow(room.locationId, tx);
+      const remaining = todayRow.tokensTotal - todayRow.tokensUsed;
+      const tokensPending = remaining < tokenCost;
+      const status = tokensPending ? 'PENDING_APPROVAL' : rulesStatus;
+
+      if (!tokensPending) {
+        await tokenService.deductTokens(room.locationId, tokenCost, tx);
+      }
 
       // Create booking
       const created = await tx.booking.create({
@@ -179,6 +186,7 @@ export const bookingService = {
           status,
           notes: data.notes,
           tokenCost,
+          tokensPending,
         },
         include: bookingWithDetails,
       });
@@ -403,12 +411,23 @@ export const bookingService = {
     if (!booking) throw new Error('Booking not found');
     if (booking.status !== 'PENDING_APPROVAL') throw new Error('Booking is not pending approval');
 
-    const updated = await bookingRepository.update(bookingId, { status: 'ACTIVE' });
+    const updated = await prisma.$transaction(async (tx) => {
+      // If tokens weren't deducted at creation (over-limit booking), deduct now (capped at 0)
+      if ((booking as any).tokensPending && booking.tokenCost > 0) {
+        await tokenService.deductTokensCapped(booking.locationId, booking.tokenCost, tx);
+      }
 
-    await bookingRepository.addLog({
-      bookingId,
-      action: 'APPROVED',
-      actorId: adminId,
+      const result = await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'ACTIVE', tokensPending: false },
+        include: bookingWithDetails,
+      });
+
+      await tx.bookingLog.create({
+        data: { bookingId, action: 'APPROVED', actorId: adminId },
+      });
+
+      return result;
     });
 
     const user = await userRepository.findById(booking.userId);
@@ -430,7 +449,8 @@ export const bookingService = {
     if (booking.status !== 'PENDING_APPROVAL') throw new Error('Booking is not pending approval');
 
     const updated = await prisma.$transaction(async (tx) => {
-      if (booking.tokenCost > 0) {
+      // Only refund if tokens were actually deducted at creation
+      if (booking.tokenCost > 0 && !(booking as any).tokensPending) {
         await tokenService.refundTokens(booking.locationId, booking.tokenCost, tx);
       }
 

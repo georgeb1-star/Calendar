@@ -132,6 +132,7 @@ model Booking {
   isPaid         Boolean           @default(false)
   paymentStatus  String?
   tokenCost      Float             @default(0)
+  tokensPending  Boolean           @default(false)
   reminderSentAt DateTime?
   recurringId    String?
   recurring      RecurringBooking? @relation(fields: [recurringId], references: [id])

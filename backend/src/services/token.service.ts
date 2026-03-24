@@ -85,6 +85,41 @@ export const tokenService = {
     });
   },
 
+  // Deducts tokens but floors tokensUsed at tokensTotal (balance never goes below 0).
+  // Used when an admin approves an over-limit booking.
+  async deductTokensCapped(locationId: string, tokenCost: number, tx: TxClient) {
+    if (tokenCost <= 0) return;
+    const date = getTodayDate();
+
+    const location = await prisma.location.findUnique({
+      where: { id: locationId },
+      include: { company: { include: { subscription: true } } },
+    });
+    const sub = location?.company?.subscription;
+    const tokensTotal = sub ? (PLAN_TOKENS[sub.plan] ?? 3) : 3;
+
+    await tx.locationDailyTokens.upsert({
+      where: { locationId_date: { locationId, date } },
+      create: { locationId, date, tokensTotal, tokensUsed: 0 },
+      update: {},
+    });
+
+    const rows = await tx.$queryRaw<Array<{ tokensUsed: number; tokensTotal: number }>>`
+      SELECT "tokensUsed", "tokensTotal"
+      FROM "LocationDailyTokens"
+      WHERE "locationId" = ${locationId} AND "date" = ${date}
+      FOR UPDATE
+    `;
+
+    if (!rows.length) return;
+    const newUsed = Math.min(rows[0].tokensUsed + tokenCost, rows[0].tokensTotal);
+
+    await tx.locationDailyTokens.update({
+      where: { locationId_date: { locationId, date } },
+      data: { tokensUsed: newUsed },
+    });
+  },
+
   async refundTokens(locationId: string, tokenCost: number, tx: TxClient) {
     if (tokenCost <= 0) return;
     const date = getTodayDate();
