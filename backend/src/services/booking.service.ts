@@ -493,11 +493,12 @@ export const bookingService = {
     });
   },
 
-  async getColleagues(userId: string, locationId: string | null) {
+  async getColleagues(userId: string, locationId: string | null, companyId: string) {
     if (!locationId) return [];
     return prisma.user.findMany({
       where: {
         locationId,
+        companyId,
         status: 'ACTIVE',
         NOT: { id: userId },
       },

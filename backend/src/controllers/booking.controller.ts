@@ -144,7 +144,7 @@ export const bookingController = {
 
   async getColleagues(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const colleagues = await bookingService.getColleagues(req.user!.userId, req.user!.locationId);
+      const colleagues = await bookingService.getColleagues(req.user!.userId, req.user!.locationId, req.user!.companyId);
       res.json(colleagues);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch colleagues' });
