@@ -131,6 +131,12 @@ export const bookingService = {
       if (blackout) {
         throw new Error(`This office is closed on ${bookingDateStr}${blackout.reason ? ` (${blackout.reason})` : ''}. Please choose a different date.`);
       }
+      const roomClosure = await prisma.roomClosure.findUnique({
+        where: { roomId_date: { roomId: data.roomId, date: bookingDateStr } },
+      });
+      if (roomClosure) {
+        throw new Error(`This room is unavailable on ${bookingDateStr}${roomClosure.reason ? ` (${roomClosure.reason})` : ''}. Please choose a different date or room.`);
+      }
     }
 
     const tokenCost = calcTokenCost(startTime, endTime);

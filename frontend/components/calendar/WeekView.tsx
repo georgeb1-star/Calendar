@@ -31,6 +31,7 @@ interface WeekViewProps {
   onClickBooking: (booking: Booking) => void;
   blackoutDates?: Set<string>;
   blackoutReasons?: Record<string, string>;
+  roomClosedDates?: Map<string, string>;
 }
 
 function startOfWeek(date: Date): Date {
@@ -102,7 +103,7 @@ function shortRoomName(name: string): string {
   return name.replace(/meeting room/i, 'Rm').replace(/room/i, 'Rm');
 }
 
-export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSlot, onSelectDay, onClickBooking, blackoutDates, blackoutReasons }: WeekViewProps) {
+export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSlot, onSelectDay, onClickBooking, blackoutDates, blackoutReasons, roomClosedDates }: WeekViewProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const today = new Date();
@@ -222,29 +223,32 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                     className="flex"
                     style={{ borderTop: '1px solid var(--th-divider)' }}
                   >
-                    {visibleRooms.map((room, i) => (
-                      <div
-                        key={room.id}
-                        className="flex-1 px-3 py-1.5"
-                        style={{
-                          width: ROOM_COL_WIDTH,
-                          borderLeft: i > 0 ? '1px solid var(--th-divider)' : 'none',
-                        }}
-                      >
-                        <p
-                          className="text-[10px] font-semibold tracking-[0.1em] uppercase truncate"
-                          style={{ color: 'var(--th-text)' }}
+                    {visibleRooms.map((room, i) => {
+                      const roomClosed = roomClosedDates?.has(`${room.id}|${dayStr}`) ?? false;
+                      return (
+                        <div
+                          key={room.id}
+                          className="flex-1 px-3 py-1.5"
+                          style={{
+                            width: ROOM_COL_WIDTH,
+                            borderLeft: i > 0 ? '1px solid var(--th-divider)' : 'none',
+                          }}
                         >
-                          {shortRoomName(room.name)}
-                        </p>
-                        <p
-                          className="text-[9px] tracking-wide"
-                          style={{ color: 'var(--th-muted)' }}
-                        >
-                          Cap. {room.capacity}
-                        </p>
-                      </div>
-                    ))}
+                          <p
+                            className="text-[10px] font-semibold tracking-[0.1em] uppercase truncate"
+                            style={{ color: roomClosed ? '#D97706' : 'var(--th-text)' }}
+                          >
+                            {shortRoomName(room.name)}
+                          </p>
+                          <p
+                            className="text-[9px] tracking-wide"
+                            style={{ color: roomClosed ? '#D97706' : 'var(--th-muted)' }}
+                          >
+                            {roomClosed ? 'Unavailable' : `Cap. ${room.capacity}`}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -307,18 +311,20 @@ export default function WeekView({ date, rooms, bookings, selectedRoom, onBookSl
                     if (['CANCELLED', 'REJECTED', 'NO_SHOW'].includes(b.status)) return false;
                     return b.roomId === room.id && isSameDay(new Date(b.startTime), day);
                   });
+                  const isRoomClosed = roomClosedDates?.has(`${room.id}|${dayStr2}`) ?? false;
+                  const columnBlocked = isDayBlackout || isRoomClosed;
 
                   return (
                     <div
                       key={room.id}
-                      className={`relative flex-shrink-0 ${isDayBlackout ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`relative flex-shrink-0 ${columnBlocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       style={{
                         width: ROOM_COL_WIDTH,
                         height: GRID_HEIGHT,
                         borderLeft: roomIdx > 0 ? '1px dashed var(--th-divider)' : 'none',
-                        backgroundColor: isDayBlackout ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)' : undefined,
+                        backgroundImage: columnBlocked ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)' : undefined,
                       }}
-                      onClick={e => { if (!isDayBlackout) handleGridClick(room.id, day, e); }}
+                      onClick={e => { if (!columnBlocked) handleGridClick(room.id, day, e); }}
                     >
                       {/* Hour lines */}
                       {hours.map((h, i) => (

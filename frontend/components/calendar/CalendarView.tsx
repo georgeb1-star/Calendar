@@ -66,13 +66,16 @@ export default function CalendarView() {
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
   const [blackoutDates, setBlackoutDates] = useState<Set<string>>(new Set());
   const [blackoutReasons, setBlackoutReasons] = useState<Record<string, string>>({});
+  // roomClosedDates: Map of "roomId|YYYY-MM-DD" -> reason
+  const [roomClosedDates, setRoomClosedDates] = useState<Map<string, string>>(new Map());
 
   const load = useCallback(async () => {
     try {
-      const [roomList, bookingList, blackouts] = await Promise.all([
+      const [roomList, bookingList, blackouts, roomClosures] = await Promise.all([
         api.rooms.list(),
         api.bookings.list(),
         api.bookings.blackoutDates().catch(() => [] as { date: string; reason: string | null }[]),
+        api.bookings.roomClosures().catch(() => [] as { roomId: string; date: string; reason: string | null }[]),
       ]);
       setRooms(roomList);
       setBookings(bookingList);
@@ -80,6 +83,11 @@ export default function CalendarView() {
       const reasons: Record<string, string> = {};
       blackouts.forEach((b: { date: string; reason: string | null }) => { if (b.reason) reasons[b.date] = b.reason; });
       setBlackoutReasons(reasons);
+      const rcMap = new Map<string, string>();
+      roomClosures.forEach((rc: { roomId: string; date: string; reason: string | null }) => {
+        rcMap.set(`${rc.roomId}|${rc.date}`, rc.reason ?? '');
+      });
+      setRoomClosedDates(rcMap);
     } catch (err) {
       console.error('Failed to load calendar data:', err);
     }
@@ -197,7 +205,7 @@ export default function CalendarView() {
       {/* View content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {view === 'day' && (
-          <DayView date={date} rooms={rooms} bookings={bookings} selectedRoom={selectedRoom} onBookSlot={openModal} onClickBooking={setDetailBooking} blackoutDates={blackoutDates} blackoutReasons={blackoutReasons} />
+          <DayView date={date} rooms={rooms} bookings={bookings} selectedRoom={selectedRoom} onBookSlot={openModal} onClickBooking={setDetailBooking} blackoutDates={blackoutDates} blackoutReasons={blackoutReasons} roomClosedDates={roomClosedDates} />
         )}
         {view === 'week' && (
           <WeekView
@@ -207,6 +215,7 @@ export default function CalendarView() {
             onClickBooking={setDetailBooking}
             blackoutDates={blackoutDates}
             blackoutReasons={blackoutReasons}
+            roomClosedDates={roomClosedDates}
           />
         )}
         {view === 'month' && (

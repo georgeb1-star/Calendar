@@ -283,6 +283,22 @@ export const bookingController = {
     }
   },
 
+  async getRoomClosures(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      if (!locationId) { res.json([]); return; }
+      const prisma = await import('../lib/prisma').then(m => m.default);
+      const closures = await prisma.roomClosure.findMany({
+        where: { room: { locationId } },
+        orderBy: { date: 'asc' },
+        select: { id: true, roomId: true, date: true, reason: true },
+      });
+      res.json(closures);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch room closures' });
+    }
+  },
+
   async respondToInvite(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;

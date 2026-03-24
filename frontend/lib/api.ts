@@ -95,6 +95,8 @@ export const api = {
       }),
     blackoutDates: () =>
       request<{ id: string; date: string; reason: string | null }[]>('/api/bookings/blackout-dates'),
+    roomClosures: () =>
+      request<{ id: string; roomId: string; date: string; reason: string | null }[]>('/api/bookings/room-closures'),
   },
 
   // Admin (OFFICE_ADMIN — scoped to their location automatically by backend)
@@ -138,6 +140,13 @@ export const api = {
         request<any>('/api/admin/blackouts', { method: 'POST', body: JSON.stringify({ date, reason }) }),
       delete: (id: string) =>
         request<any>(`/api/admin/blackouts/${id}`, { method: 'DELETE' }),
+    },
+    roomClosures: {
+      list: () => request<{ id: string; roomId: string; date: string; reason: string | null; room: { id: string; name: string } }[]>('/api/admin/room-closures'),
+      create: (roomId: string, date: string, reason?: string) =>
+        request<any>('/api/admin/room-closures', { method: 'POST', body: JSON.stringify({ roomId, date, reason }) }),
+      delete: (id: string) =>
+        request<any>(`/api/admin/room-closures/${id}`, { method: 'DELETE' }),
     },
   },
 

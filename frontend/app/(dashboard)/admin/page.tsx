@@ -9,8 +9,9 @@ import UserTable from '@/components/admin/UserTable';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import RoomTable from '@/components/admin/RoomTable';
 import BlackoutDates from '@/components/admin/BlackoutDates';
+import RoomClosures from '@/components/admin/RoomClosures';
 
-type Tab = 'approvals' | 'users' | 'analytics' | 'rooms' | 'closures';
+type Tab = 'approvals' | 'users' | 'analytics' | 'rooms' | 'closures' | 'room-closures';
 
 const OFFICE_ADMIN_ROLES = ['ADMIN', 'OFFICE_ADMIN', 'GLOBAL_ADMIN'];
 
@@ -33,6 +34,7 @@ export default function AdminPage() {
     { id: 'analytics', label: 'Analytics' },
     { id: 'rooms', label: 'Rooms' },
     { id: 'closures', label: 'Office Closures' },
+    { id: 'room-closures', label: 'Room Closures' },
   ];
 
   const locationLabel = user.location?.name ?? 'Office';
@@ -66,6 +68,7 @@ export default function AdminPage() {
       {tab === 'analytics' && <AnalyticsDashboard />}
       {tab === 'rooms' && <RoomTable />}
       {tab === 'closures' && <BlackoutDates />}
+      {tab === 'room-closures' && <RoomClosures />}
     </div>
   );
 }

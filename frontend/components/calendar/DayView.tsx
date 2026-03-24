@@ -29,6 +29,7 @@ interface DayViewProps {
   onClickBooking: (booking: Booking) => void;
   blackoutDates?: Set<string>;
   blackoutReasons?: Record<string, string>;
+  roomClosedDates?: Map<string, string>;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -90,7 +91,7 @@ function getCurrentTimeTop(): number {
   return (mins / 60) * HOUR_HEIGHT;
 }
 
-export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlot, onClickBooking, blackoutDates, blackoutReasons }: DayViewProps) {
+export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlot, onClickBooking, blackoutDates, blackoutReasons, roomClosedDates }: DayViewProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isToday = isSameDay(date, new Date());
@@ -147,26 +148,29 @@ export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlo
         style={{ borderBottom: '2px solid var(--th-border)' }}
       >
         <div className="flex-shrink-0" style={{ width: TIME_GUTTER, borderRight: '1px solid var(--th-divider)' }} />
-        {visibleRooms.map(room => (
-          <div
-            key={room.id}
-            className="flex-1 px-5 py-3"
-            style={{ borderLeft: '1px solid var(--th-divider)' }}
-          >
-            <p
-              className="text-xs font-semibold tracking-[0.12em] uppercase"
-              style={{ color: 'var(--th-text)' }}
+        {visibleRooms.map(room => {
+          const roomClosed = roomClosedDates?.has(`${room.id}|${dateStr}`) ?? false;
+          const roomClosedReason = roomClosedDates?.get(`${room.id}|${dateStr}`);
+          return (
+            <div
+              key={room.id}
+              className="flex-1 px-5 py-3"
+              style={{ borderLeft: '1px solid var(--th-divider)' }}
             >
-              {room.name}
-            </p>
-            <p
-              className="text-[10px] mt-0.5 tracking-wide"
-              style={{ color: 'var(--th-muted)' }}
-            >
-              Up to {room.capacity} people
-            </p>
-          </div>
-        ))}
+              <p
+                className="text-xs font-semibold tracking-[0.12em] uppercase"
+                style={{ color: roomClosed ? '#D97706' : 'var(--th-text)' }}
+              >
+                {room.name}
+              </p>
+              <p className="text-[10px] mt-0.5 tracking-wide" style={{ color: 'var(--th-muted)' }}>
+                {roomClosed
+                  ? <span className="text-amber-600 font-medium">{roomClosedReason || 'Unavailable today'}</span>
+                  : `Up to ${room.capacity} people`}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Scrollable grid */}
@@ -197,16 +201,19 @@ export default function DayView({ date, rooms, bookings, selectedRoom, onBookSlo
           {/* Room columns */}
           {visibleRooms.map(room => {
             const roomBookings = dayBookings.filter(b => b.roomId === room.id);
+            const roomClosed = roomClosedDates?.has(`${room.id}|${dateStr}`) ?? false;
+            const columnBlocked = isBlackout || roomClosed;
             return (
               <div
                 key={room.id}
-                className={`flex-1 relative ${isBlackout ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                className={`flex-1 relative ${columnBlocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 style={{
                   height: GRID_HEIGHT,
                   borderLeft: '1px solid var(--th-divider)',
-                  backgroundColor: isBlackout ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)' : isToday ? '#FAF0EE08' : 'transparent',
+                  backgroundImage: columnBlocked ? 'repeating-linear-gradient(45deg, #FEF3C7, #FEF3C7 4px, #FFFBEB 4px, #FFFBEB 12px)' : undefined,
+                  backgroundColor: !columnBlocked && isToday ? '#FAF0EE08' : undefined,
                 }}
-                onClick={e => { if (!isBlackout) handleGridClick(room.id, e); }}
+                onClick={e => { if (!columnBlocked) handleGridClick(room.id, e); }}
               >
                 {/* Hour lines */}
                 {hours.map((h, i) => (

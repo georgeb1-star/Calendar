@@ -18,6 +18,7 @@ router.get('/recurring', bookingController.listRecurring as any);
 router.post('/recurring', bookingController.createRecurring as any);
 router.delete('/recurring/:id', bookingController.cancelRecurring as any);
 router.get('/blackout-dates', bookingController.getBlackoutDates as any);
+router.get('/room-closures', bookingController.getRoomClosures as any);
 router.post('/invites/:id/respond', bookingController.respondToInvite as any);
 router.get('/', bookingController.getAll as any);
 router.post('/', bookingController.create as any);

@@ -230,4 +230,67 @@ export const adminController = {
       res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to delete blackout date' });
     }
   },
+
+  // Room closures
+  async listRoomClosures(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      if (!locationId) { res.status(400).json({ error: 'No location associated with your account' }); return; }
+      const closures = await prisma.roomClosure.findMany({
+        where: { room: { locationId } },
+        include: { room: { select: { id: true, name: true } } },
+        orderBy: [{ date: 'asc' }, { room: { name: 'asc' } }],
+      });
+      res.json(closures);
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to fetch room closures' });
+    }
+  },
+
+  async createRoomClosure(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      const { roomId, date, reason } = req.body;
+      if (!roomId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        res.status(400).json({ error: 'roomId and date (YYYY-MM-DD) are required' });
+        return;
+      }
+      // Verify room belongs to admin's location
+      const room = await prisma.room.findUnique({ where: { id: roomId } });
+      if (!room || (locationId && room.locationId !== locationId)) {
+        res.status(403).json({ error: 'Room not found in your location' });
+        return;
+      }
+      const closure = await prisma.roomClosure.create({
+        data: { roomId, date, reason: reason || null },
+        include: { room: { select: { id: true, name: true } } },
+      });
+      res.status(201).json(closure);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create room closure';
+      if (msg.includes('P2002') || msg.includes('Unique constraint')) {
+        res.status(409).json({ error: 'A closure already exists for that room on that day' });
+        return;
+      }
+      res.status(400).json({ error: msg });
+    }
+  },
+
+  async deleteRoomClosure(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const locationId = req.user!.locationId;
+      const existing = await prisma.roomClosure.findUnique({
+        where: { id: req.params.id },
+        include: { room: { select: { locationId: true } } },
+      });
+      if (!existing || (locationId && existing.room.locationId !== locationId)) {
+        res.status(404).json({ error: 'Room closure not found' });
+        return;
+      }
+      await prisma.roomClosure.delete({ where: { id: req.params.id } });
+      res.json({ deleted: true });
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to delete room closure' });
+    }
+  },
 };

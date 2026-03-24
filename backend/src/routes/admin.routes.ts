@@ -35,4 +35,9 @@ router.get('/blackouts', adminController.listBlackouts as any);
 router.post('/blackouts', adminController.createBlackout as any);
 router.delete('/blackouts/:id', adminController.deleteBlackout as any);
 
+// Room closures
+router.get('/room-closures', adminController.listRoomClosures as any);
+router.post('/room-closures', adminController.createRoomClosure as any);
+router.delete('/room-closures/:id', adminController.deleteRoomClosure as any);
+
 export default router;

@@ -120,7 +120,19 @@ model Room {
   location          Location           @relation(fields: [locationId], references: [id])
   bookings          Booking[]
   recurringBookings RecurringBooking[]
+  closures          RoomClosure[]
   createdAt         DateTime           @default(now())
+}
+
+model RoomClosure {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date      String   // "YYYY-MM-DD"
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([roomId, date])
 }
 
 model Booking {
