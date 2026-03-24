@@ -345,7 +345,7 @@ describe('bookingService', () => {
       (mockPrisma.user.findMany as jest.Mock).mockResolvedValue([
         { id: 'user-2', name: 'Bob', email: 'bob@acme.com' },
       ]);
-      const result = await bookingService.getColleagues('user-1', 'company-1');
+      const result = await bookingService.getColleagues('user-1', 'company-1', 'company-1');
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({

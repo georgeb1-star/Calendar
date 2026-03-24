@@ -209,7 +209,7 @@ describe('BUG-08: User cannot invite themselves', () => {
   test('organiser is excluded from invitee list (NOT: { id: userId } in query)', async () => {
     // The getColleagues query filters out the requesting user
     (mockPrisma.user.findMany as jest.Mock).mockResolvedValue([]);
-    const colleagues = await bookingService.getColleagues('user-1', 'c-1');
+    const colleagues = await bookingService.getColleagues('user-1', 'c-1', 'c-1');
     expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ NOT: { id: 'user-1' } }),
