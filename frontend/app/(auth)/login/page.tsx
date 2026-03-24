@@ -29,67 +29,87 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: 'var(--th-warm)' }}>
+
       {/* Left decorative panel */}
       <div
-        className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-16"
+        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-14"
         style={{ backgroundColor: 'var(--th-pink-light)' }}
       >
-        {/* Townhouse grid logo */}
-        <div className="w-16 h-16 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-0.5 p-1 mb-8">
-          <div className="bg-[#1A1A1A]" />
-          <div className="bg-[#1A1A1A]" />
-          <div className="bg-[#1A1A1A]" />
-          <div className="bg-[#1A1A1A]" />
+        {/* Top logo mark */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-[3px] p-[3px]">
+            <div className="bg-[#1A1A1A]" />
+            <div className="bg-[#1A1A1A]" />
+            <div className="bg-[#1A1A1A]" />
+            <div className="bg-[#1A1A1A]" />
+          </div>
+          <span
+            className="text-sm font-semibold tracking-[0.2em] uppercase"
+            style={{ color: 'var(--th-text)' }}
+          >
+            Townhouse
+          </span>
         </div>
-        <h1
-          className="text-2xl font-light tracking-[0.3em] uppercase mb-3"
-          style={{ color: 'var(--th-text)' }}
-        >
-          Townhouse
-        </h1>
-        <p
-          className="text-xs tracking-[0.2em] uppercase"
-          style={{ color: 'var(--th-muted)' }}
-        >
-          Meeting Room Booking
-        </p>
 
-        {/* Decorative pink line */}
-        <div className="mt-12 w-16 h-px" style={{ backgroundColor: 'var(--th-pink)' }} />
+        {/* Centre copy */}
+        <div>
+          <p
+            className="text-[10px] font-semibold tracking-[0.25em] uppercase mb-4"
+            style={{ color: 'var(--th-pink)' }}
+          >
+            Meeting Room Booking
+          </p>
+          <h1
+            className="text-4xl font-light leading-snug mb-6"
+            style={{ color: 'var(--th-text)' }}
+          >
+            Your workspace,<br />perfectly scheduled.
+          </h1>
+          <div className="w-10 h-px" style={{ backgroundColor: 'var(--th-pink)' }} />
+        </div>
+
+        {/* Bottom tagline */}
+        <p className="text-xs tracking-wide" style={{ color: 'var(--th-muted)' }}>
+          Manage rooms across every location — all in one place.
+        </p>
       </div>
 
       {/* Right login form */}
       <div className="flex-1 flex flex-col items-center justify-center p-8">
+
         {/* Mobile logo */}
         <div className="lg:hidden text-center mb-10">
-          <div className="w-10 h-10 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-0.5 p-0.5 mx-auto mb-4">
+          <div className="w-9 h-9 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-[3px] p-[3px] mx-auto mb-3">
             <div className="bg-[#1A1A1A]" />
             <div className="bg-[#1A1A1A]" />
             <div className="bg-[#1A1A1A]" />
             <div className="bg-[#1A1A1A]" />
           </div>
-          <p className="text-xs tracking-[0.2em] uppercase" style={{ color: 'var(--th-muted)' }}>
-            Meeting Rooms
-          </p>
+          <span className="text-xs tracking-[0.2em] uppercase font-semibold" style={{ color: 'var(--th-text)' }}>
+            Townhouse
+          </span>
         </div>
 
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-[360px]">
+
+          {/* Heading */}
           <div className="mb-8">
-            <h2
-              className="text-xs font-semibold tracking-[0.2em] uppercase mb-2"
+            <p
+              className="text-[10px] font-semibold tracking-[0.2em] uppercase mb-2"
               style={{ color: 'var(--th-muted)' }}
             >
               Welcome back
-            </h2>
-            <p className="text-xl font-light tracking-wide" style={{ color: 'var(--th-text)' }}>
-              Sign in to your account
             </p>
-            <div className="mt-3 w-8 h-px" style={{ backgroundColor: 'var(--th-pink)' }} />
+            <h2 className="text-2xl font-light tracking-wide" style={{ color: 'var(--th-text)' }}>
+              Sign in
+            </h2>
+            <div className="mt-3 w-6 h-px" style={{ backgroundColor: 'var(--th-pink)' }} />
           </div>
 
+          {/* Error */}
           {error && (
             <div
-              className="mb-5 px-4 py-3 text-xs tracking-wide border"
+              className="mb-5 px-4 py-3 text-xs tracking-wide border rounded"
               style={{
                 backgroundColor: 'var(--th-pink-light)',
                 borderColor: 'var(--th-pink-mid)',
@@ -100,7 +120,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label
                 className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
@@ -113,35 +133,33 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
+                autoComplete="email"
                 placeholder="you@company.com"
-                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9]"
-                style={{
-                  borderColor: 'var(--th-border)',
-                  color: 'var(--th-text)',
-                }}
+                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9] rounded"
+                style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               />
             </div>
 
             <div>
-              <label
-                className="block text-[10px] font-semibold tracking-[0.15em] uppercase mb-2"
-                style={{ color: 'var(--th-muted)' }}
-              >
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  className="block text-[10px] font-semibold tracking-[0.15em] uppercase"
+                  style={{ color: 'var(--th-muted)' }}
+                >
+                  Password
+                </label>
+              </div>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9]"
-                style={{
-                  borderColor: 'var(--th-border)',
-                  color: 'var(--th-text)',
-                }}
+                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors placeholder-[#C5BDB9] rounded"
+                style={{ borderColor: 'var(--th-border)', color: 'var(--th-text)' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               />
@@ -150,7 +168,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 text-xs font-semibold tracking-[0.2em] uppercase transition-opacity disabled:opacity-60 mt-2"
+              className="w-full py-3.5 text-xs font-semibold tracking-[0.2em] uppercase transition-opacity disabled:opacity-60 rounded mt-1"
               style={{ backgroundColor: 'var(--th-pink)', color: '#ffffff' }}
               onMouseOver={e => !loading && ((e.target as HTMLElement).style.backgroundColor = 'var(--th-pink-hover)')}
               onMouseOut={e => ((e.target as HTMLElement).style.backgroundColor = 'var(--th-pink)')}
@@ -159,28 +177,19 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--th-border)' }}>
-            <p className="text-[10px] tracking-[0.1em] uppercase text-center mb-3" style={{ color: 'var(--th-muted)' }}>
-              Demo credentials
-            </p>
-            <div className="space-y-1 text-[11px] text-center" style={{ color: 'var(--th-muted)' }}>
-              <p>admin@acme.com / admin123</p>
-              <p>bob@acme.com / password123</p>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-[11px]" style={{ color: 'var(--th-muted)' }}>
               Don&apos;t have an account?{' '}
               <Link
                 href="/signup"
-                className="underline underline-offset-2"
+                className="font-medium underline underline-offset-2 transition-colors"
                 style={{ color: 'var(--th-text)' }}
               >
-                Create an account
+                Create one
               </Link>
             </p>
           </div>
+
         </div>
       </div>
     </div>
