@@ -96,23 +96,27 @@ async function main() {
     { email: 'user@londonbridgetherapy.com',  name: 'Sam LBT',         role: Role.EMPLOYEE,      companySlug: 'lbt' },
   ];
 
+  const boroughForUsers = await prisma.location.findFirst({ where: { name: 'Borough' } });
+  if (!boroughForUsers) throw new Error('Borough location not found — run migrations first');
+
   for (const u of userSeed) {
     const hash = u.role === Role.COMPANY_ADMIN ? adminHash : empHash;
     await prisma.user.upsert({
       where: { email: u.email },
-      update: {},
+      update: { locationId: boroughForUsers.id },
       create: {
         email:        u.email,
         passwordHash: hash,
         name:         u.name,
         role:         u.role,
         companyId:    companies[u.companySlug].id,
+        locationId:   boroughForUsers.id,
         status:       'ACTIVE',
       },
     });
   }
 
-  console.log('Seed users created (COMPANY_ADMIN + EMPLOYEE per company)');
+  console.log('Seed users created (COMPANY_ADMIN + EMPLOYEE per company, assigned to Borough)');
 
   // ── Rooms (scoped to Borough location) ───────────────────────────────────
   const boroughLocation = await prisma.location.findFirst({ where: { name: 'Borough' } });
