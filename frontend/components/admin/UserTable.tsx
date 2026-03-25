@@ -73,7 +73,7 @@ export default function UserTable() {
 
   const assignableRoles = currentUser?.role === 'GLOBAL_ADMIN'
     ? ['EMPLOYEE', 'OFFICE_ADMIN', 'COMPANY_ADMIN', 'GLOBAL_ADMIN']
-    : ['EMPLOYEE', 'OFFICE_ADMIN'];
+    : ['EMPLOYEE', 'OFFICE_ADMIN', 'COMPANY_ADMIN'];
 
   const roleLabel = (role: string) => {
     switch (role) {

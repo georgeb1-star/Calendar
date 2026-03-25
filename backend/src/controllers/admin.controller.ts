@@ -53,7 +53,7 @@ export const adminController = {
 
       const allowedRoles = requester.role === 'GLOBAL_ADMIN'
         ? ['EMPLOYEE', 'OFFICE_ADMIN', 'COMPANY_ADMIN', 'GLOBAL_ADMIN']
-        : ['EMPLOYEE', 'OFFICE_ADMIN'];
+        : ['EMPLOYEE', 'OFFICE_ADMIN', 'COMPANY_ADMIN'];
 
       if (!allowedRoles.includes(role)) {
         res.status(403).json({ error: 'You cannot assign that role' });
