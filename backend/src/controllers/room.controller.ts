@@ -76,8 +76,9 @@ export const roomController = {
         return;
       }
 
+      const { photoUrl } = req.body;
       const room = await prisma.room.create({
-        data: { name, capacity: Number(capacity), amenities: amenities ?? [], locationId },
+        data: { name, capacity: Number(capacity), amenities: amenities ?? [], photoUrl: photoUrl || null, locationId },
       });
       res.status(201).json(room);
     } catch (err: unknown) {

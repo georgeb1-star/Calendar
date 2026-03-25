@@ -9,6 +9,7 @@ export interface StoredUser {
   name: string;
   role: 'EMPLOYEE' | 'ADMIN' | 'COMPANY_ADMIN' | 'OFFICE_ADMIN' | 'GLOBAL_ADMIN';
   status: 'PENDING' | 'ACTIVE';
+  emailReminders: boolean;
   locationId: string | null;
   companyId: string;
   location: {

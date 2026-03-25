@@ -67,6 +67,7 @@ model User {
   name                String
   role                Role                 @default(EMPLOYEE)
   status              UserStatus           @default(ACTIVE)
+  emailReminders      Boolean              @default(true)
   companyId           String
   company             Company              @relation(fields: [companyId], references: [id])
   locationId          String?
@@ -125,6 +126,7 @@ model Room {
   name              String
   capacity          Int
   amenities         String[]
+  photoUrl          String?
   isActive          Boolean            @default(true)
   locationId        String
   location          Location           @relation(fields: [locationId], references: [id])

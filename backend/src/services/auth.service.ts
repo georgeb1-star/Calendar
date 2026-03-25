@@ -12,6 +12,7 @@ function formatUser(user: any) {
     name: user.name,
     role: user.role,
     status: user.status,
+    emailReminders: user.emailReminders ?? true,
     companyId: user.companyId,
     company: user.company,
     locationId: user.locationId ?? null,
@@ -48,6 +49,15 @@ export const authService = {
   async getMe(userId: string) {
     const user = await userRepository.findById(userId);
     if (!user) throw new Error('User not found');
+    return formatUser(user);
+  },
+
+  async updateMe(userId: string, data: { emailReminders: boolean }) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      include: { company: true, location: true },
+    });
     return formatUser(user);
   },
 

@@ -34,6 +34,8 @@ export const api = {
         body: JSON.stringify({ email, password }),
       }),
     me: () => request<any>('/api/auth/me'),
+    updateMe: (data: { emailReminders: boolean }) =>
+      request<any>('/api/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
     logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
     register: (data: { name: string; email: string; password: string; locationId: string; companyId: string }) =>
       request<{ token: string; user: any }>('/api/auth/register', {
@@ -115,6 +117,8 @@ export const api = {
       list: () => request<any[]>('/api/admin/users'),
       create: (data: any) =>
         request<any>('/api/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+      changeRole: (id: string, role: string) =>
+        request<any>(`/api/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
       delete: (id: string) =>
         request<any>(`/api/admin/users/${id}`, { method: 'DELETE' }),
     },

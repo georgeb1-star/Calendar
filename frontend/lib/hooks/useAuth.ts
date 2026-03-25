@@ -31,5 +31,14 @@ export function useAuth() {
     window.location.href = '/login';
   }, []);
 
-  return { user, loading, login, logout, isAuthenticated: !!user };
+  const updateUser = useCallback((updates: Partial<StoredUser>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      localStorage.setItem('auth_user', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  return { user, loading, login, logout, updateUser, isAuthenticated: !!user };
 }

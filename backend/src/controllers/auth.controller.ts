@@ -76,6 +76,20 @@ export const authController = {
     }
   },
 
+  async updateMe(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { emailReminders } = req.body;
+      if (typeof emailReminders !== 'boolean') {
+        res.status(400).json({ error: 'emailReminders must be a boolean' });
+        return;
+      }
+      const updated = await authService.updateMe(req.user!.userId, { emailReminders });
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to update settings' });
+    }
+  },
+
   async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       const { token, password } = req.body;

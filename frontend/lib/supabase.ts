@@ -13,6 +13,16 @@ type BookingChangeHandler = (payload: {
   old: Record<string, unknown>;
 }) => void;
 
+export async function uploadRoomPhoto(file: File): Promise<string> {
+  if (!supabase) throw new Error('Supabase is not configured');
+  const ext = file.name.split('.').pop();
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from('room-photos').upload(path, file, { upsert: false });
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from('room-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export function subscribeToBookings(handler: BookingChangeHandler): (() => void) | null {
   if (!supabase) {
     console.warn('[Realtime] Supabase not configured — realtime updates disabled');

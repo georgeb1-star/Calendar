@@ -8,6 +8,7 @@ interface Room {
   id: string;
   name: string;
   capacity: number;
+  photoUrl?: string | null;
 }
 
 interface Colleague {
@@ -359,18 +360,29 @@ export default function BookingModal({
                   key={room.id}
                   type="button"
                   onClick={() => setRoomId(room.id)}
-                  className="px-4 py-3 border-2 text-left transition-all"
+                  className="border-2 text-left transition-all overflow-hidden"
                   style={{
                     borderColor: roomId === room.id ? 'var(--th-pink)' : 'var(--th-border)',
                     backgroundColor: roomId === room.id ? 'var(--th-pink-light)' : '#ffffff',
                   }}
                 >
-                  <p className="text-xs font-semibold tracking-wide" style={{ color: roomId === room.id ? 'var(--th-pink)' : 'var(--th-text)' }}>
-                    {room.name}
-                  </p>
-                  <p className="text-[10px] mt-0.5 tracking-wide" style={{ color: 'var(--th-muted)' }}>
-                    Up to {room.capacity} people
-                  </p>
+                  {room.photoUrl && (
+                    <div className="w-full h-20 overflow-hidden">
+                      <img
+                        src={room.photoUrl}
+                        alt={room.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="px-4 py-3">
+                    <p className="text-xs font-semibold tracking-wide" style={{ color: roomId === room.id ? 'var(--th-pink)' : 'var(--th-text)' }}>
+                      {room.name}
+                    </p>
+                    <p className="text-[10px] mt-0.5 tracking-wide" style={{ color: 'var(--th-muted)' }}>
+                      Up to {room.capacity} people
+                    </p>
+                  </div>
                 </button>
               ))}
             </div>

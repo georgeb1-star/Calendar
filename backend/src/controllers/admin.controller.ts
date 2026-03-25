@@ -40,6 +40,42 @@ export const adminController = {
     }
   },
 
+  async changeRole(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { role } = req.body;
+      const requester = req.user!;
+      const targetId = req.params.id;
+
+      if (targetId === requester.userId) {
+        res.status(400).json({ error: 'You cannot change your own role' });
+        return;
+      }
+
+      const allowedRoles = requester.role === 'GLOBAL_ADMIN'
+        ? ['EMPLOYEE', 'OFFICE_ADMIN', 'COMPANY_ADMIN', 'GLOBAL_ADMIN']
+        : ['EMPLOYEE', 'OFFICE_ADMIN'];
+
+      if (!allowedRoles.includes(role)) {
+        res.status(403).json({ error: 'You cannot assign that role' });
+        return;
+      }
+
+      // OFFICE_ADMIN can only change users in their location
+      if (requester.role !== 'GLOBAL_ADMIN' && requester.locationId) {
+        const target = await userRepository.findById(targetId);
+        if (!target || target.locationId !== requester.locationId) {
+          res.status(403).json({ error: 'User not found in your location' });
+          return;
+        }
+      }
+
+      const updated = await userRepository.updateRole(targetId, role);
+      res.json(updated);
+    } catch (err: unknown) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Failed to update role' });
+    }
+  },
+
   async deleteUser(req: AuthRequest, res: Response): Promise<void> {
     try {
       // OFFICE_ADMIN can only delete users in their location

@@ -11,6 +11,7 @@ router.use(requireOfficeAdmin as any);
 // User management
 router.post('/users', adminController.createUser as any);
 router.get('/users', adminController.getUsers as any);
+router.put('/users/:id/role', adminController.changeRole as any);
 router.delete('/users/:id', adminController.deleteUser as any);
 
 // Booking approvals

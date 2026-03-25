@@ -62,6 +62,19 @@ export default function UserTable() {
     }
   }
 
+  async function handleRoleChange(id: string, role: string) {
+    try {
+      await api.admin.users.changeRole(id, role);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to change role');
+    }
+  }
+
+  const assignableRoles = currentUser?.role === 'GLOBAL_ADMIN'
+    ? ['EMPLOYEE', 'OFFICE_ADMIN', 'COMPANY_ADMIN', 'GLOBAL_ADMIN']
+    : ['EMPLOYEE', 'OFFICE_ADMIN'];
+
   const roleLabel = (role: string) => {
     switch (role) {
       case 'OFFICE_ADMIN': return 'Office Admin';
@@ -159,9 +172,21 @@ export default function UserTable() {
                 <td className="px-4 py-3 font-medium text-slate-800">{u.name}</td>
                 <td className="px-4 py-3 text-slate-600">{u.email}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge(u.role)}`}>
-                    {roleLabel(u.role)}
-                  </span>
+                  {u.id === currentUser?.id || u.role === 'ADMIN' ? (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge(u.role)}`}>
+                      {roleLabel(u.role)}
+                    </span>
+                  ) : (
+                    <select
+                      value={u.role}
+                      onChange={e => handleRoleChange(u.id, e.target.value)}
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-400 ${roleBadge(u.role)}`}
+                    >
+                      {assignableRoles.map(r => (
+                        <option key={r} value={r}>{roleLabel(r)}</option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${

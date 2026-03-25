@@ -14,11 +14,11 @@ export const roomRepository = {
     return prisma.room.findUnique({ where: { id } });
   },
 
-  create(data: { name: string; capacity: number; amenities?: string[]; locationId: string }) {
+  create(data: { name: string; capacity: number; amenities?: string[]; photoUrl?: string; locationId: string }) {
     return prisma.room.create({ data });
   },
 
-  update(id: string, data: Partial<{ name: string; capacity: number; amenities: string[]; isActive: boolean }>) {
+  update(id: string, data: Partial<{ name: string; capacity: number; amenities: string[]; photoUrl: string | null; isActive: boolean }>) {
     return prisma.room.update({ where: { id }, data });
   },
 

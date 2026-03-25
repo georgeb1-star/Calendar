@@ -29,16 +29,19 @@ export function startReminderJob() {
       const secret = process.env.JWT_SECRET || 'secret';
 
       for (const booking of bookings) {
+        // Always mark as sent to avoid re-processing, even if user opted out
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { reminderSentAt: now },
+        });
+
+        if ((booking.user as any).emailReminders === false) continue;
+
         const cancelToken = jwt.sign(
           { bookingId: booking.id, userId: booking.userId },
           secret,
           { expiresIn: '8h' }
         );
-
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { reminderSentAt: now },
-        });
 
         notificationService.sendReminder(booking.user, booking, cancelToken).catch(console.error);
       }

@@ -84,6 +84,14 @@ export const userRepository = {
     });
   },
 
+  updateRole(id: string, role: Role) {
+    return prisma.user.update({
+      where: { id },
+      data: { role },
+      include: userInclude,
+    });
+  },
+
   async delete(id: string) {
     const bookings = await prisma.booking.findMany({ where: { userId: id }, select: { id: true } });
     const bookingIds = bookings.map(b => b.id);
