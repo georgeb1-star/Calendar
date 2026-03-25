@@ -1,7 +1,7 @@
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
 
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
@@ -15,7 +15,7 @@ type BookingChangeHandler = (payload: {
 
 export async function uploadRoomPhoto(file: File): Promise<string> {
   if (!supabase) throw new Error('Supabase is not configured');
-  const ext = file.name.split('.').pop();
+  const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
   const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const { error } = await supabase.storage.from('room-photos').upload(path, file, { upsert: false });
   if (error) throw new Error(error.message);
