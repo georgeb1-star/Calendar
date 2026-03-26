@@ -44,8 +44,10 @@ export const api = {
       }),
     getLocations: () =>
       request<{ id: string; name: string; address?: string }[]>('/api/auth/locations'),
-    getCompanies: () =>
-      request<{ id: string; name: string }[]>('/api/auth/companies'),
+    getCompanies: (locationId?: string) =>
+      request<{ id: string; name: string }[]>(
+        locationId ? `/api/auth/companies?locationId=${locationId}` : '/api/auth/companies'
+      ),
     forgotPassword: (email: string) =>
       request<{ message: string }>('/api/auth/forgot-password', {
         method: 'POST',

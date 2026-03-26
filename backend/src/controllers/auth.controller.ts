@@ -55,9 +55,10 @@ export const authController = {
     }
   },
 
-  async getCompanies(_req: Request, res: Response): Promise<void> {
+  async getCompanies(req: Request, res: Response): Promise<void> {
     try {
-      const companies = await authService.getCompanies();
+      const locationId = req.query.locationId as string | undefined;
+      const companies = await authService.getCompanies(locationId);
       res.json(companies);
     } catch (err: unknown) {
       res.status(500).json({ error: 'Failed to fetch companies' });

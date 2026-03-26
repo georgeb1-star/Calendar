@@ -180,9 +180,12 @@ export const authService = {
     });
   },
 
-  async getCompanies() {
+  async getCompanies(locationId?: string) {
     return prisma.company.findMany({
-      where: { name: { not: 'Nammu Workplace' } },
+      where: {
+        name: { not: 'Nammu Workplace' },
+        ...(locationId ? { officeLocationId: locationId } : {}),
+      },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });

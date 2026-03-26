@@ -17,6 +17,8 @@ model Company {
   dailyTokens       CompanyDailyTokens[]
   subscription      Subscription?
   recurringBookings RecurringBooking[]
+  officeLocationId  String?
+  officeLocation    Location?            @relation("CompanyOffice", fields: [officeLocationId], references: [id])
   createdAt         DateTime             @default(now())
 }
 
@@ -34,6 +36,7 @@ model Location {
   dailyTokens       LocationDailyTokens[]
   recurringBookings RecurringBooking[]
   blackoutDates     BlackoutDate[]
+  officeCompanies   Company[]            @relation("CompanyOffice")
   createdAt         DateTime             @default(now())
 }
 

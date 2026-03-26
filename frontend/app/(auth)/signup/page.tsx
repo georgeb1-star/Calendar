@@ -20,8 +20,13 @@ export default function SignupPage() {
 
   useEffect(() => {
     api.auth.getLocations().then(setLocations).catch(() => {});
-    api.auth.getCompanies().then(setCompanies).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!locationId) { setCompanies([]); return; }
+    api.auth.getCompanies(locationId).then(setCompanies).catch(() => {});
+    setCompanyId('');
+  }, [locationId]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -205,12 +210,15 @@ export default function SignupPage() {
                 value={companyId}
                 onChange={e => setCompanyId(e.target.value)}
                 required
-                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors appearance-none"
+                disabled={!locationId}
+                className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ borderColor: 'var(--th-border)', color: companyId ? '#000000' : '#C5BDB9' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               >
-                <option value="" disabled>Select your company</option>
+                <option value="" disabled>
+                  {locationId ? 'Select your company' : 'Select an office first'}
+                </option>
                 {companies.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
