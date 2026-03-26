@@ -25,6 +25,16 @@ export default function GlobalAdminPage() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState('');
 
+  async function handleDeactivate(id: string, name: string) {
+    if (!confirm(`Deactivate "${name}"? Users will no longer be able to make bookings there.`)) return;
+    try {
+      await api.locations.deactivate(id);
+      setLocations(prev => prev.map(l => l.id === id ? { ...l, isActive: false } : l));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to deactivate location');
+    }
+  }
+
   useEffect(() => {
     if (!loading && user?.role !== 'GLOBAL_ADMIN') {
       router.push('/calendar');
@@ -106,12 +116,22 @@ export default function GlobalAdminPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/global-admin/${loc.id}`}
-                      className="px-3 py-1 text-xs font-semibold text-slate-500 border border-slate-200 rounded hover:text-slate-700 hover:border-slate-300 transition-colors"
-                    >
-                      Manage
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/global-admin/${loc.id}`}
+                        className="px-3 py-1 text-xs font-semibold text-slate-500 border border-slate-200 rounded hover:text-slate-700 hover:border-slate-300 transition-colors"
+                      >
+                        Manage
+                      </Link>
+                      {loc.isActive && (
+                        <button
+                          onClick={() => handleDeactivate(loc.id, loc.name)}
+                          className="px-3 py-1 text-xs font-semibold text-red-400 border border-red-200 rounded hover:text-red-600 hover:border-red-400 transition-colors"
+                        >
+                          Deactivate
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
