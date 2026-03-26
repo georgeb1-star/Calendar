@@ -212,7 +212,7 @@ export default function SignupPage() {
                 required
                 disabled={!locationId}
                 className="w-full px-4 py-3 text-sm border bg-white focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ borderColor: 'var(--th-border)', color: companyId ? '#000000' : '#C5BDB9' }}
+                style={{ borderColor: 'var(--th-border)', color: (companyId || locationId) ? '#000000' : '#C5BDB9' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--th-pink)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--th-border)')}
               >
