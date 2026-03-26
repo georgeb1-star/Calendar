@@ -211,8 +211,86 @@ export default function LocationDetailPage() {
         </div>
       )}
 
-      {/* Data tables */}
-      {tab !== 'tokens' && (
+      {/* Users tab — always rendered so Add user button is always visible */}
+      {tab === 'users' && (
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 flex justify-end">
+            <button
+              onClick={() => setShowAddUser(v => !v)}
+              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              + Add user
+            </button>
+          </div>
+          {showAddUser && (
+            <div className="px-4 py-4 border-b border-slate-200 bg-slate-50">
+              {userFormError && (
+                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">{userFormError}</div>
+              )}
+              <form onSubmit={handleAddUser} className="grid grid-cols-2 gap-3">
+                <input type="text" placeholder="Full name" required
+                  value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input type="email" placeholder="Email address" required
+                  value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input type="password" placeholder="Password" required minLength={6}
+                  value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="OFFICE_ADMIN">Office Admin</option>
+                  <option value="COMPANY_ADMIN">Company Admin</option>
+                  <option value="EMPLOYEE">Employee</option>
+                </select>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={userFormLoading}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-sm rounded-lg transition-colors">
+                    {userFormLoading ? 'Creating…' : 'Create'}
+                  </button>
+                  <button type="button" onClick={() => setShowAddUser(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-white">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+          {fetching ? (
+            <p className="px-4 py-6 text-sm text-slate-500">Loading…</p>
+          ) : data.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-500">No users found for this location.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.map((u: any) => (
+                  <tr key={u.id} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-medium text-slate-800">{u.name}</td>
+                    <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs uppercase">{u.role}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        u.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>{u.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Data tables for other tabs */}
+      {tab !== 'tokens' && tab !== 'users' && (
         fetching ? (
           <p className="text-sm text-slate-500">Loading…</p>
         ) : data.length === 0 ? (
@@ -252,87 +330,6 @@ export default function LocationDetailPage() {
                   ))}
                 </tbody>
               </table>
-            )}
-
-            {tab === 'users' && (
-              <>
-                <div className="px-4 py-3 border-b border-slate-200 flex justify-end">
-                  <button
-                    onClick={() => setShowAddUser(v => !v)}
-                    className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    + Add user
-                  </button>
-                </div>
-                {showAddUser && (
-                  <div className="px-4 py-4 border-b border-slate-200 bg-slate-50">
-                    {userFormError && (
-                      <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">{userFormError}</div>
-                    )}
-                    <form onSubmit={handleAddUser} className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text" placeholder="Full name" required
-                        value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="email" placeholder="Email address" required
-                        value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="password" placeholder="Password" required minLength={6}
-                        value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <select
-                        value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="OFFICE_ADMIN">Office Admin</option>
-                        <option value="COMPANY_ADMIN">Company Admin</option>
-                        <option value="EMPLOYEE">Employee</option>
-                      </select>
-                      <div className="flex gap-2">
-                        <button type="submit" disabled={userFormLoading}
-                          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-sm rounded-lg transition-colors">
-                          {userFormLoading ? 'Creating…' : 'Create'}
-                        </button>
-                        <button type="button" onClick={() => setShowAddUser(false)}
-                          className="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-white">
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Role</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {data.map((u: any) => (
-                      <tr key={u.id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-medium text-slate-800">{u.name}</td>
-                        <td className="px-4 py-3 text-slate-600">{u.email}</td>
-                        <td className="px-4 py-3 text-slate-500 text-xs uppercase">{u.role}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            u.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {u.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
             )}
 
             {tab === 'rooms' && (
