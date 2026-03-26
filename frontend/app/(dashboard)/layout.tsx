@@ -6,6 +6,42 @@ import AuthGuard from '@/components/ui/AuthGuard';
 import Sidebar from '@/components/ui/Sidebar';
 import { useAuth } from '@/lib/hooks/useAuth';
 
+function PendingApprovalScreen() {
+  const { logout } = useAuth();
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8" style={{ backgroundColor: 'var(--th-warm)' }}>
+      <div className="w-10 h-10 border-2 border-[#1A1A1A] grid grid-cols-2 grid-rows-2 gap-0.5 p-0.5 mb-8">
+        <div className="bg-[#1A1A1A]" />
+        <div className="bg-[#1A1A1A]" />
+        <div className="bg-[#1A1A1A]" />
+        <div className="bg-[#1A1A1A]" />
+      </div>
+      <div className="w-full max-w-sm text-center">
+        <p className="text-[10px] font-semibold tracking-[0.2em] uppercase mb-2" style={{ color: 'var(--th-muted)' }}>
+          Account Status
+        </p>
+        <h1 className="text-2xl font-light tracking-wide mb-4" style={{ color: 'var(--th-text)', fontFamily: 'Georgia, serif' }}>
+          Awaiting Approval
+        </h1>
+        <div className="w-8 h-px mx-auto mb-6" style={{ backgroundColor: 'var(--th-pink)' }} />
+        <p className="text-sm leading-relaxed mb-2" style={{ color: 'var(--th-muted)' }}>
+          Your account has been created and is pending approval from your office administrator.
+        </p>
+        <p className="text-sm leading-relaxed mb-8" style={{ color: 'var(--th-muted)' }}>
+          You'll receive an email once your account has been activated.
+        </p>
+        <button
+          onClick={logout}
+          className="text-xs tracking-[0.15em] uppercase underline underline-offset-2"
+          style={{ color: 'var(--th-muted)' }}
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, loading } = useAuth();
@@ -17,6 +53,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       router.replace('/global-admin');
     }
   }, [user, loading, pathname, router]);
+
+  if (!loading && user?.status === 'PENDING') {
+    return <PendingApprovalScreen />;
+  }
 
   return (
     <div className="flex min-h-screen bg-surface">

@@ -137,6 +137,12 @@ export default function MyBookingsPage() {
     <div className="px-6 py-8 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-800">My Bookings</h1>
+        <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Awaiting Approval — pending admin sign-off</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Confirmed — approved and ready</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />Rejected — declined by admin</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />Cancelled / Completed</span>
+        </div>
         <p className="text-slate-500 text-sm mt-1">Your bookings and meetings you've been invited to</p>
       </div>
 
